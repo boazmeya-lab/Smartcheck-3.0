@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smartcheck 3.0 - Form Builder</title>
+  
+  <!-- Importation de Tailwind CSS pour un design ultra-propre style Tally -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons pour les icônes de l'éditeur -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Style minimaliste pour la sélection et la transition */
+    .block-input:focus {
+      outline: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-50/50 min-h-screen py-12 px-4 text-gray-800">
+
+  <!-- Éditeur principal style Tally -->
+  <div class="max-w-3xl mx-auto bg-white min-h-[80vh] shadow-sm rounded-2xl border border-gray-100 p-12 relative">
+    
+    <!-- Barre d'outils supérieure -->
+    <div class="flex justify-between items-center mb-10 pb-4 border-b border-gray-100">
+      <div class="flex items-center gap-2 text-gray-400 text-sm">
+        <i data-lucide="file-text" class="w-4 h-4 text-violet-500"></i>
+        <span class="font-medium text-gray-600">Smartcheck 3.0</span>
+      </div>
+      <button id="toggle-mode" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all">
+        <i data-lucide="eye" class="w-4 h-4"></i>
+        <span id="btn-text">Consulter le rendu</span>
+      </button>
+    </div>
+
+    <!-- Zone des Blocs du Formulaire -->
+    <form id="form-container" class="space-y-6">
+      <!-- Les blocs dynamiques s'insèrent ici. En voici deux par défaut : -->
+      
+      <!-- Bloc 1 : Titre principal -->
+      <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="heading">
+        <div class="flex items-center justify-between gap-4">
+          <input type="text" class="block-input w-full text-3xl font-extrabold text-gray-900 bg-transparent py-1 placeholder-gray-300" value="Smartcheck 3.0" placeholder="Titre de votre formulaire">
+          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bloc 2 : Texte d'introduction -->
+      <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="text">
+        <div class="flex items-center justify-between gap-4">
+          <input type="text" class="block-input w-full text-gray-600 bg-transparent py-1 text-lg placeholder-gray-300" value="Cliquez ici pour rédiger ou tapez '/' pour insérer un champ." placeholder="Tapez du texte ou '/' pour insérer un champ...">
+          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+    </form>
+
+    <!-- Menu Pop-up / Slash flottant (Caché par défaut) -->
+    <div id="slash-menu" class="hidden absolute z-50 w-64 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex flex-col gap-1">
+      <div class="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        Insérer un élément
+      </div>
+      
+      <!-- Bouton d'ajout de champ de réponse -->
+      <button type="button" onclick="insertNewBlock('input')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg transition-colors">
+        <div class="p-1.5 bg-violet-50 text-violet-600 rounded-md">
+          <i data-lucide="text-cursor-input" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900">Champ de réponse</p>
+          <p class="text-xs text-gray-400">Pour collecter des réponses courtes</p>
+        </div>
+      </button>
+
+      <!-- Bouton d'ajout de texte standard -->
+      <button type="button" onclick="insertNewBlock('text')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+        <div class="p-1.5 bg-gray-100 text-gray-600 rounded-md">
+          <i data-lucide="type" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900">Texte standard</p>
+          <p class="text-xs text-gray-400">Écrire un paragraphe simple</p>
+        </div>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Script interactif (Le moteur de l'application) -->
+  <script>
+    // Initialise les icônes lucide
+    lucide.createIcons();
+
+    const formContainer = document.getElementById('form-container');
+    const slashMenu = document.getElementById('slash-menu');
+    const toggleBtn = document.getElementById('toggle-mode');
+    const btnText = document.getElementById('btn-text');
+    
+    let previewMode = false;
+    let activeInputForSlash = null;
+
+    // Détecteur de touche "/"
+    formContainer.addEventListener('keyup', function(e) {
+      if (previewMode) return;
+
+      if (e.target && e.target.classList.contains('block-input')) {
+        const value = e.target.value;
+        const currentBlock = e.target.closest('.form-block');
+        const blockType = currentBlock.getAttribute('data-type');
+
+        // On n'active le menu slash que sur les blocs de type texte standard
+        if (value.endsWith('/') && blockType === 'text') {
+          activeInputForSlash = e.target;
+          
+          // Positionner le menu juste sous l'input actif
+          const rect = e.target.getBoundingClientRect();
+          const containerRect = formContainer.parentElement.getBoundingClientRect();
+
+          slashMenu.style.top = `${rect.bottom - containerRect.top + 10}px`;
+          slashMenu.style.left = `${rect.left - containerRect.left}px`;
+          slashMenu.classList.remove('hidden');
+        }
+      }
+    });
+
+    // Fonction d'insertion de bloc
+    function insertNewBlock(type) {
+      if (!activeInputForSlash) return;
+
+      const currentBlock = activeInputForSlash.closest('.form-block');
+      
+      // Nettoyer le "/" saisi
+      activeInputForSlash.value = activeInputForSlash.value.replace('/', '');
+
+      // Création du nouveau bloc
+      const newBlock = document.createElement('div');
+      newBlock.className = 'form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all';
+      newBlock.setAttribute('data-type', type);
+
+      let contentHTML = '';
+
+      if (type === 'input') {
+        contentHTML = `
+          <div class="w-full p-4 bg-gray-50 rounded-xl border border-gray-100 my-2">
+            <div class="flex items-center gap-2 text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">
+              <i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i> Question (Réponse courte)
+            </div>
+            <input type="text" class="block-input w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b border-transparent focus:border-violet-400 pb-1" value="Question sans titre" placeholder="Votre question...">
+          </div>
+        `;
+      } else {
+        contentHTML = `
+          <div class="flex items-center justify-between gap-4">
+            <input type="text" class="block-input w-full text-gray-700 bg-transparent py-1 text-lg placeholder-gray-300" value="" placeholder="Tapez du texte ou '/' pour insérer un élément...">
+          </div>
+        `;
+      }
+
+      // Ajout du bouton de suppression générique
+      newBlock.innerHTML = `
+        <div class="flex items-center justify-between gap-4">
+          <div class="w-full">${contentHTML}</div>
+          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      `;
+
+      // Insérer le bloc juste après le bloc actuel
+      currentBlock.after(newBlock);
+
+      // Fermer le menu et rafraîchir les icônes
+      hideSlashMenu();
+      lucide.createIcons();
+      
+      // Focus automatique sur le nouveau champ créé
+      newBlock.querySelector('.block-input').focus();
+    }
+
+    // Gestion de la suppression de bloc
+    formContainer.addEventListener('click', function(e) {
+      const deleteBtn = e.target.closest('.delete-btn');
+      if (deleteBtn) {
+        const block = deleteBtn.closest('.form-block');
+        // On évite de supprimer le dernier bloc restant pour ne pas vider l'écran
+        if (document.querySelectorAll('.form-block').length > 1) {
+          block.remove();
+        }
+      }
+    });
+
+    // Basculer entre l'édition et le rendu final
+    toggleBtn.addEventListener('click', function() {
+      previewMode = !previewMode;
+      const blocks = document.querySelectorAll('.form-block');
+      
+      if (previewMode) {
+        btnText.textContent = "Mode Édition";
+        toggleBtn.querySelector('i').setAttribute('data-lucide', 'code');
+        
+        blocks.forEach(block => {
+          const type = block.getAttribute('data-type');
+          const input = block.querySelector('.block-input');
+          const deleteBtn = block.querySelector('.delete-btn');
+          
+          if (deleteBtn) deleteBtn.classList.add('hidden'); // Cacher la corbeille
+
+          if (type === 'heading') {
+            // Transforme le titre éditable en vrai titre H1 fixe
+            const value = input.value || "Formulaire sans titre";
+            block.innerHTML = `<h1 class="text-3xl font-extrabold text-gray-900 mb-2">${value}</h1>`;
+          } else if (type === 'text') {
+            // Transforme le paragraphe d'écriture en un texte de paragraphe
+            const value = input.value || "";
+            block.innerHTML = `<p class="text-gray-600 leading-relaxed text-lg">${value}</p>`;
+          } else if (type === 'input') {
+            // Crée un vrai champ d'entrée de formulaire utilisateur propre
+            const questionText = input.value || "Question sans titre";
+            block.innerHTML = `
+              <div class="space-y-1.5 mt-4">
+                <label class="block text-sm font-semibold text-gray-700">${questionText}</label>
+                <input type="text" placeholder="Saisissez votre réponse..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 text-sm">
+              </div>
+            `;
+          }
+        });
+      } else {
+        // Recharge la page ou ré-actualise pour sortir du rendu et repasser en édition complète
+        window.location.reload();
+      }
+      lucide.createIcons();
+    });
+
+    // Fermer le menu si clic à l'extérieur
+    document.addEventListener('click', function(e) {
+      if (!slashMenu.contains(e.target) && (!activeInputForSlash || e.target !== activeInputForSlash)) {
+        hideSlashMenu();
+      }
+    });
+
+    function hideSlashMenu() {
+      slashMenu.classList.add('hidden');
+      activeInputForSlash = null;
+    }
+  </script>
+</body>
+</html>
