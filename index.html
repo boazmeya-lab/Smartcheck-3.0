@@ -1,296 +1,600 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smartcheck 3.0 - Form Builder AI</title>
-  
-  <!-- Importation de Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SmartCheck by Smartech</title>
 
-  <style>
-    .block-input:focus {
-      outline: none;
-    }
-  </style>
+<!-- CONFIGURATION PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#2ec4b6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+<!-- IMPORTATION DU SCANNEUR ET DES ICONES -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root {
+    --primary: #2ec4b6;
+    --primary-dark: #0f9f90;
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f1c40f;
+    --dark: #2c3e50;
+    --bg: #f4f9f8;
+    --card-shadow: 0 4px 20px rgba(46, 196, 182, 0.08);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 15px 15px 80px 15px;
+    color: var(--dark);
+    -webkit-user-select: none;
+}
+
+.header-container {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+h1 {
+    color: var(--dark);
+    font-size: 28px;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+h1 span {
+    color: var(--primary);
+}
+
+.brand-subtitle {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.app-view {
+    display: none;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.app-view.active {
+    display: block;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    margin: 15px auto;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    box-sizing: border-box;
+}
+
+.nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+    z-index: 999;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    width: 25%;
+}
+
+.nav-item i {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.stat-box {
+    background: #fff;
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    border-left: 4px solid var(--primary);
+}
+
+.stat-box.success { border-left-color: var(--success); }
+.stat-box.warning { border-left-color: var(--warning); }
+
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--dark);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.search-box, .input-field {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-box:focus, .input-field:focus {
+    border-color: var(--primary);
+}
+
+.guest-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 15px;
+}
+
+.guest-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f9f8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+}
+
+.guest-info strong {
+    display: block;
+    color: var(--dark);
+}
+
+.guest-time {
+    font-size: 11px;
+    color: #bdc3c7;
+}
+
+.guest-table-badge {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.badge.present { background: rgba(46, 204, 113, 0.15); color: var(--success); }
+.badge.absent { background: rgba(148, 163, 184, 0.15); color: #64748b; }
+
+button.btn-main {
+    background: var(--primary);
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(46, 196, 182, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+button.btn-main:hover { background: var(--primary-dark); }
+button.btn-secondary {
+    background: #e2e8f0;
+    color: var(--dark);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#scan-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px;
+}
+
+.flash-title {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.flash-name {
+    font-size: 32px;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 12px;
+    margin: 15px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.flash-table {
+    font-size: 22px;
+    font-weight: 600;
+    background: #fff;
+    color: #1e293b;
+    padding: 6px 16px;
+    border-radius: 8px;
+    margin-top: 5px;
+}
+</style>
 </head>
-<body class="bg-gray-50/50 min-h-screen py-12 px-4 text-gray-800">
+<body>
 
-  <!-- Éditeur principal -->
-  <div class="max-w-3xl mx-auto bg-white min-h-[80vh] shadow-sm rounded-2xl border border-gray-100 p-12 relative">
-    
-    <!-- Barre d'outils supérieure -->
-    <div class="flex justify-between items-center mb-10 pb-4 border-b border-gray-100">
-      <div class="flex items-center gap-2 text-gray-400 text-sm">
-        <i data-lucide="sparkles" class="w-4 h-4 text-violet-500 animate-pulse"></i>
-        <span class="font-medium text-gray-600">Smartcheck AI 3.0</span>
-      </div>
-      <button id="toggle-mode" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all">
-        <i data-lucide="eye" class="w-4 h-4"></i>
-        <span id="btn-text">Consulter le rendu</span>
-      </button>
-    </div>
+<div class="header-container">
+    <div class="brand-subtitle">By Smartech</div>
+    <h1>Smart<span>Check</span></h1>
+</div>
 
-    <!-- Zone des Blocs du Formulaire -->
-    <form id="form-container" class="space-y-6">
-      
-      <!-- Bloc 1 : Titre principal -->
-      <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="heading">
-        <div class="flex items-center justify-between gap-4">
-          <input type="text" class="block-input w-full text-3xl font-extrabold text-gray-900 bg-transparent py-1 placeholder-gray-300" value="Mon Formulaire Intelligent" placeholder="Titre de votre formulaire">
-          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Bloc 2 : Texte d'introduction avec invite IA -->
-      <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="text">
-        <div class="flex items-center justify-between gap-4">
-          <input type="text" class="block-input w-full text-gray-600 bg-transparent py-1 text-lg placeholder-gray-300" value="" placeholder="Appuyez sur 'Espace' pour l'IA, ou '/' pour insérer un champ...">
-          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-
-    </form>
-
-    <!-- ================= MENU SLASH (/) ================= -->
-    <div id="slash-menu" class="hidden absolute z-50 w-64 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex flex-col gap-1">
-      <div class="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Insérer un élément</div>
-      
-      <button type="button" onclick="insertNewBlock('input')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg transition-colors">
-        <div class="p-1.5 bg-violet-50 text-violet-600 rounded-md"><i data-lucide="text-cursor-input" class="w-4 h-4"></i></div>
-        <div>
-          <p class="font-semibold text-gray-900">Champ de réponse</p>
-          <p class="text-xs text-gray-400">Collecter des réponses courtes</p>
-        </div>
-      </button>
-
-      <button type="button" onclick="insertNewBlock('text')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-        <div class="p-1.5 bg-gray-100 text-gray-600 rounded-md"><i data-lucide="type" class="w-4 h-4"></i></div>
-        <div>
-          <p class="font-semibold text-gray-900">Texte standard</p>
-          <p class="text-xs text-gray-400">Écrire un paragraphe simple</p>
-        </div>
-      </button>
-    </div>
-
-    <!-- ================= CONSOLE IA (Espace) ================= -->
-    <div id="ai-menu" class="hidden absolute z-50 w-80 bg-slate-900 text-white shadow-2xl rounded-xl p-3 flex flex-col gap-2 border border-slate-800">
-      <div class="flex items-center gap-1.5 px-1 text-xs font-semibold text-violet-400 uppercase tracking-wider">
-        <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i> Assistant IA Smartcheck
-      </div>
-      <div class="flex gap-2">
-        <input id="ai-prompt" type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-violet-500 placeholder:text-slate-500" placeholder="Ex: Génère un formulaire de contact...">
-        <button type="button" id="ai-submit" class="bg-violet-600 hover:bg-violet-500 text-white p-2 rounded-lg transition-colors">
-          <i data-lucide="arrow-right" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <div id="ai-status" class="text-xxs text-slate-400 px-1 hidden flex items-center gap-2">
-        <span class="inline-block w-2 h-2 bg-violet-500 rounded-full animate-ping"></span> L'IA réfléchit...
-      </div>
-    </div>
-
-  </div>
-
-  <script>
-    lucide.createIcons();
-
-    const formContainer = document.getElementById('form-container');
-    const slashMenu = document.getElementById('slash-menu');
-    const aiMenu = document.getElementById('ai-menu');
-    const aiPrompt = document.getElementById('ai-prompt');
-    const aiSubmit = document.getElementById('ai-submit');
-    const aiStatus = document.getElementById('ai-status');
-    const toggleBtn = document.getElementById('toggle-mode');
-    const btnText = document.getElementById('btn-text');
-    
-    let previewMode = false;
-    let activeInput = null;
-
-    // Écouteur d'événements clavier
-    formContainer.addEventListener('keyup', function(e) {
-      if (previewMode) return;
-
-      if (e.target && e.target.classList.contains('block-input')) {
-        const value = e.target.value;
-        const currentBlock = e.target.closest('.form-block');
-        const blockType = currentBlock.getAttribute('data-type');
-        activeInput = e.target;
-
-        // 1. Déclencheur du menu SLASH '/'
-        if (value.endsWith('/') && blockType === 'text') {
-          positionElementUnderInput(slashMenu, e.target);
-          slashMenu.classList.remove('hidden');
-          aiMenu.classList.add('hidden');
-        } 
-        // 2. Déclencheur de l'IA 'Espace' (si le champ est vide)
-        else if (e.key === ' ' && value.trim() === '' && blockType === 'text') {
-          e.preventDefault();
-          positionElementUnderInput(aiMenu, e.target);
-          aiMenu.classList.remove('hidden');
-          slashMenu.classList.add('hidden');
-          aiPrompt.focus();
-        }
-      }
-    });
-
-    function positionElementUnderInput(element, input) {
-      const rect = input.getBoundingClientRect();
-      const containerRect = formContainer.parentElement.getBoundingClientRect();
-      element.style.top = `${rect.bottom - containerRect.top + 8}px`;
-      element.style.left = `${rect.left - containerRect.left}px`;
-    }
-
-    // Insertion d'un bloc standard
-    function insertNewBlock(type, labelValue = '') {
-      if (!activeInput) return;
-      const currentBlock = activeInput.closest('.form-block');
-      
-      // Nettoyer les caractères déclencheurs
-      activeInput.value = activeInput.value.replace('/', '');
-
-      const newBlock = document.createElement('div');
-      newBlock.className = 'form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all';
-      newBlock.setAttribute('data-type', type);
-
-      let contentHTML = '';
-      if (type === 'input') {
-        contentHTML = `
-          <div class="w-full p-4 bg-gray-50 rounded-xl border border-gray-100 my-2">
-            <div class="flex items-center gap-2 text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">
-              <i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i> Question
+<!-- ACCUEIL -->
+<div id="view-home" class="app-view active">
+    <div class="card">
+        <h3><i class="fa-solid fa-chart-pie"></i> Tableau de bord</h3>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div id="stat-total" class="stat-number">0</div>
+                <div class="stat-label">Total Invités</div>
             </div>
-            <input type="text" class="block-input w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b border-transparent focus:border-violet-400 pb-1" value="${labelValue || 'Question sans titre'}" placeholder="Votre question...">
-          </div>
-        `;
-      } else {
-        contentHTML = `
-          <div class="flex items-center justify-between gap-4">
-            <input type="text" class="block-input w-full text-gray-700 bg-transparent py-1 text-lg placeholder-gray-300" value="${labelValue}" placeholder="Appuyez sur 'Espace' pour l'IA, ou '/' pour insérer un champ...">
-          </div>
-        `;
-      }
-
-      newBlock.innerHTML = `
-        <div class="flex items-center justify-between gap-4">
-          <div class="w-full">${contentHTML}</div>
-          <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
+            <div class="stat-box success">
+                <div id="stat-present" class="stat-number">0</div>
+                <div class="stat-label">Présents</div>
+            </div>
+            <div class="stat-box warning">
+                <div id="stat-absent" class="stat-number">0</div>
+                <div class="stat-label">Absents</div>
+            </div>
+            <div class="stat-box">
+                <div id="stat-ratio" class="stat-number">0%</div>
+                <div class="stat-label">Taux d'accès</div>
+            </div>
         </div>
-      `;
+        <button class="btn-main" onclick="switchView('scanner')">
+            <i class="fa-solid fa-qrcode"></i> Lancer un Scan
+        </button>
+    </div>
+</div>
 
-      currentBlock.after(newBlock);
-      hideMenus();
-      lucide.createIcons();
-      newBlock.querySelector('.block-input').focus();
-    }
+<!-- SCANNER -->
+<div id="view-scanner" class="app-view">
+    <div class="card">
+        <button id="start-btn" class="btn-main" onclick="demarrerScan()">📷 Ouvrir le Scanneur</button>
+        <div id="reader"></div>
+    </div>
+</div>
 
-    // ================= APPEL API IA (HUGGING FACE) =================
-    async function askAI() {
-      const promptValue = aiPrompt.value.trim();
-      if (!promptValue) return;
+<!-- INVITÉS -->
+<div id="view-guests" class="app-view">
+    <div class="card">
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
+            <input type="text" id="search-input" class="search-box" placeholder="Rechercher un invité..." oninput="filtrerInvites()">
+            <button class="btn-secondary" onclick="synchroniserDonnees()"><i class="fa-solid fa-sync"></i></button>
+        </div>
+        <div id="liste-invites" class="guest-list"></div>
+    </div>
+</div>
 
-      aiStatus.classList.remove('hidden');
-      aiSubmit.disabled = true;
-
-      try {
-        // Nous interrogeons un modèle d'IA ultra-rapide capable de structurer du texte
-        const response = await fetch("https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            inputs: `<|system|>\nTu es un assistant qui génère uniquement des questions de formulaires claires et concises en français basées sur la consigne. Donne les questions séparées par des virgules sans numérotation.</s>\n<|user|>\nGénère 3 questions de formulaire pour : ${promptValue}</s>\n<|assistant|>\n`,
-            parameters: { max_new_tokens: 150, temperature: 0.7 }
-          })
-        });
-
-        const data = await response.json();
-        const generatedText = data[0].generated_text.split('<|assistant|>\n')[1] || "";
+<!-- PARAMÈTRES -->
+<div id="view-settings" class="app-view">
+    <div class="card">
+        <h3><i class="fa-solid fa-gear"></i> Configuration webhook n8n</h3>
+        <p style="font-size:13px; color:#7f8c8d;">Entrez l'URL de votre Webhook n8n connecté à Google Sheets.</p>
+        <input type="url" id="webhook-url" class="input-field" placeholder="https://..." style="margin-bottom: 15px;">
         
-        // Nettoyer et séparer les questions trouvées
-        const questions = generatedText.split(/[,\n]/).map(q => q.replace(/^[-\d.\s]+/, '').trim()).filter(q => q.length > 5);
+        <button class="btn-main" onclick="sauvegarderParametres()" style="margin-bottom:10px;">
+            <i class="fa-solid fa-floppy-disk"></i> Sauvegarder la configuration
+        </button>
+        <button class="btn-secondary" onclick="testerConnexion()" style="width:100%;">
+            <i class="fa-solid fa-wifi"></i> Tester la connexion
+        </button>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        <button class="btn-secondary" onclick="reinitialiserLocale()" style="width:100%; color: var(--danger);">
+            <i class="fa-solid fa-trash-can"></i> Réinitialiser le cache local
+        </button>
+    </div>
+</div>
 
-        if (questions.length > 0) {
-          questions.forEach(question => {
-            insertNewBlock('input', question);
-          });
-        } else {
-          insertNewBlock('text', "Désolé, l'IA n'a pas pu formuler de questions claires. Réessayez !");
+<!-- NAV BAR -->
+<div class="nav-bar">
+    <button class="nav-item active" onclick="switchView('home', this)"><i class="fa-solid fa-house"></i>Accueil</button>
+    <button class="nav-item" onclick="switchView('scanner', this)"><i class="fa-solid fa-qrcode"></i>Scanner</button>
+    <button class="nav-item" onclick="switchView('guests', this)"><i class="fa-solid fa-users"></i>Invités</button>
+    <button class="nav-item" onclick="switchView('settings', this)"><i class="fa-solid fa-gear"></i>Paramètres</button>
+</div>
+
+<div id="scan-overlay"></div>
+
+<script>
+let html5QrcodeScanner;
+let BaseDonneesInvites = JSON.parse(localStorage.getItem('smartcheck_db')) || [];
+let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
+
+document.getElementById('webhook-url').value = WebhookUrl;
+MettreAJourAffichage();
+
+function switchView(viewId, element) {
+    document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    if(element) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+    }
+    if (viewId !== 'scanner' && html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => console.log(err));
+        document.getElementById('start-btn').style.display = 'flex';
+    }
+}
+
+function demarrerScan() {
+    document.getElementById('start-btn').style.display = 'none';
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: { width: 250, height: 250 } }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+}
+
+// Nettoie n'importe quelle chaîne si c'est une URL
+function extraireNomDepuisTexte(texte) {
+    if (!texte) return '';
+    texte = texte.trim();
+    if (texte.startsWith('http://') || texte.startsWith('https://')) {
+        try {
+            let url = new URL(texte);
+            let nom = url.searchParams.get('name') || url.searchParams.get('nom');
+            if (nom) return decodeURIComponent(nom).trim();
+        } catch (e) {
+            console.error(e);
         }
-
-      } catch (error) {
-        console.error(error);
-        insertNewBlock('text', "Erreur de connexion avec l'IA. Veuillez réessayer.");
-      } finally {
-        aiStatus.classList.add('hidden');
-        aiSubmit.disabled = false;
-        aiPrompt.value = '';
-        hideMenus();
-      }
     }
+    return texte;
+}
 
-    aiSubmit.addEventListener('click', askAI);
-    aiPrompt.addEventListener('keypress', (e) => { if (e.key === 'Enter') askAI(); });
+function onScanSuccess(decodedText) {
+    let nomScanne = extraireNomDepuisTexte(decodedText);
+    html5QrcodeScanner.clear().catch(err => console.log(err));
+    
+    // Recherche intelligente (compare uniquement les noms nettoyés)
+    let invite = BaseDonneesInvites.find(g => extraireNomDepuisTexte(g.nom).toLowerCase() === nomScanne.toLowerCase());
+    
+    if (invite) {
+        if (invite.statut === 'Présent') {
+            let detailHeure = invite.heure ? 'Présent depuis ' + invite.heure : '';
+            let tableText = invite.table ? `<br><div class="flash-table">📍 ${invite.table}</div>` : '';
+            declencherFlash(
+                `<div class="flash-title">Déjà Scanné ! ⚠️</div>
+                 <div class="flash-name">${extraireNomDepuisTexte(invite.nom)}</div>
+                 <span style="font-size:16px;">${detailHeure}</span>
+                 ${tableText}`, 
+                'var(--danger)'
+            );
+            relancerScanneurApresDelai();
+        } else {
+            validerEntree(invite);
+        }
+    } else {
+        let nouvelInvite = { nom: nomScanne, statut: 'Absent', heure: '', table: '' };
+        validerEntree(nouvelInvite, true);
+    }
+}
 
-    // Gestion de la suppression
-    formContainer.addEventListener('click', function(e) {
-      const deleteBtn = e.target.closest('.delete-btn');
-      if (deleteBtn && document.querySelectorAll('.form-block').length > 1) {
-        deleteBtn.closest('.form-block').remove();
-      }
-    });
+function onScanFailure(error) {}
 
-    // Basculement Mode Prévisualisation
-    toggleBtn.addEventListener('click', function() {
-      previewMode = !previewMode;
-      const blocks = document.querySelectorAll('.form-block');
-      
-      if (previewMode) {
-        btnText.textContent = "Mode Édition";
-        toggleBtn.querySelector('i').setAttribute('data-lucide', 'code');
+async function validerEntree(invite, estNouveau = false) {
+    let maintenant = new Date();
+    let heureActuelle = maintenant.getHours().toString().padStart(2, '0') + ':' + maintenant.getMinutes().toString().padStart(2, '0');
+    
+    invite.statut = 'Présent';
+    invite.heure = heureActuelle;
+
+    if (estNouveau) {
+        BaseDonneesInvites.unshift(invite);
+    }
+    
+    sauvegarderLocalement();
+    MettreAJourAffichage();
+    
+    let nomPropre = extraireNomDepuisTexte(invite.nom);
+    let tableHtml = invite.table ? `<div class="flash-table">📍 Table : ${invite.table}</div>` : `<div class="flash-table">📍 Pas de table assignée</div>`;
+    
+    declencherFlash(
+        `<div class="flash-title">Accès Autorisé ✅</div>
+         <div class="flash-name">${nomPropre}</div>
+         ${tableHtml}`, 
+        'var(--success)'
+    );
+
+    if (WebhookUrl) {
+        try {
+            await fetch(WebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'checkin', nom: nomPropre, heure: heureActuelle })
+            });
+        } catch (e) {
+            console.error("Erreur synchro", e);
+        }
+    }
+    relancerScanneurApresDelai();
+}
+
+function relancerScanneurApresDelai() {
+    setTimeout(() => {
+        if (document.getElementById('view-scanner').classList.contains('active')) {
+            demarrerScan();
+        }
+    }, 2500);
+}
+
+async function synchroniserDonnees() {
+    if (!WebhookUrl) {
+        alert("Configurez le Webhook.");
+        return;
+    }
+    try {
+        let response = await fetch(`${WebhookUrl}?action=getGuests`);
+        if (response.ok) {
+            let donnees = await response.json(); 
+            if (Array.isArray(donnees)) {
+                BaseDonneesInvites = donnees;
+                sauvegarderLocalement();
+                MettreAJourAffichage();
+                alert("Synchronisé !");
+            }
+        } else {
+            alert("Erreur de récupération.");
+        }
+    } catch (e) {
+        alert("Erreur serveur n8n.");
+    }
+}
+
+function filtrerInvites() {
+    let query = document.getElementById('search-input').value.toLowerCase();
+    let listeDiv = document.getElementById('liste-invites');
+    listeDiv.innerHTML = '';
+    
+    let invitesFiltres = BaseDonneesInvites.filter(g => extraireNomDepuisTexte(g.nom).toLowerCase().includes(query));
+    
+    if(invitesFiltres.length === 0) {
+        listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité.</p>';
+        return;
+    }
+    
+    invitesFiltres.forEach(guest => {
+        let badgeClass = guest.statut === 'Présent' ? 'present' : 'absent';
+        let detailHeure = guest.heure ? `Scanné à ${guest.heure}` : 'Non arrivé';
+        let tableBadge = guest.table ? `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${guest.table}</div>` : '';
+        let nomPropre = extraireNomDepuisTexte(guest.nom);
         
-        blocks.forEach(block => {
-          const type = block.getAttribute('data-type');
-          const input = block.querySelector('.block-input');
-          const deleteBtn = block.querySelector('.delete-btn');
-          if (deleteBtn) deleteBtn.classList.add('hidden');
-
-          if (type === 'heading') {
-            block.innerHTML = `<h1 class="text-3xl font-extrabold text-gray-900 mb-2">${input.value || "Formulaire"}</h1>`;
-          } else if (type === 'text') {
-            block.innerHTML = `<p class="text-gray-600 leading-relaxed text-lg">${input.value || ""}</p>`;
-          } else if (type === 'input') {
-            block.innerHTML = `
-              <div class="space-y-1.5 mt-4">
-                <label class="block text-sm font-semibold text-gray-700">${input.value || "Question"}</label>
-                <input type="text" placeholder="Votre réponse..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-sm">
-              </div>
-            `;
-          }
-        });
-      } else {
-        window.location.reload();
-      }
-      lucide.createIcons();
+        listeDiv.innerHTML += `
+            <div class="guest-item">
+                <div class="guest-info">
+                    <strong>${nomPropre}</strong>
+                    <span class="guest-time">${detailHeure}</span>
+                    ${tableBadge}
+                </div>
+                <div>
+                    <span class="badge ${badgeClass}">${guest.statut}</span>
+                    ${guest.statut === 'Absent' ? `<button onclick="forcerValidation('${guest.nom}')" style="margin-left:8px; font-size:11px; padding:4px 6px; border-radius:5px; border:none; background:var(--primary); color:white; cursor:pointer;"><i class="fa-solid fa-check"></i></button>` : ''}
+                </div>
+            </div>
+        `;
     });
+}
 
-    // Fermeture des menus lors d'un clic extérieur
-    document.addEventListener('click', function(e) {
-      if (!slashMenu.contains(e.target) && !aiMenu.contains(e.target) && e.target !== activeInput) {
-        hideMenus();
-      }
-    });
+function forcerValidation(nom) {
+    let invite = BaseDonneesInvites.find(g => g.nom === nom);
+    if (invite) validerEntree(invite);
+}
 
-    function hideMenus() {
-      slashMenu.classList.add('hidden');
-      aiMenu.classList.add('hidden');
+function sauvegarderParametres() {
+    WebhookUrl = document.getElementById('webhook-url').value.trim();
+    localStorage.setItem('smartcheck_webhook', WebhookUrl);
+    alert("Enregistré !");
+}
+
+async function testerConnexion() {
+    let url = document.getElementById('webhook-url').value.trim();
+    if(!url) return alert("Entrez une URL.");
+    try {
+        let res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action:'ping'}) });
+        if(res.ok) alert("Connecté à n8n ! 🚀");
+        else alert("Réponse avec erreur.");
+    } catch(e) {
+        alert("Échec connexion.");
     }
-  </script>
+}
+
+function MettreAJourAffichage() {
+    let total = BaseDonneesInvites.length;
+    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent').length;
+    let absents = total - presents;
+    let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
+    
+    document.getElementById('stat-total').innerText = total;
+    document.getElementById('stat-present').innerText = presents;
+    document.getElementById('stat-absent').innerText = absents;
+    document.getElementById('stat-ratio').innerText = ratio + '%';
+    
+    filtrerInvites();
+}
+
+function declencherFlash(message, couleur) {
+    let overlay = document.getElementById('scan-overlay');
+    overlay.style.backgroundColor = couleur;
+    overlay.innerHTML = message;
+    overlay.style.display = 'flex';
+    
+    if (navigator.vibrate) navigator.vibrate([200]);
+    setTimeout(() => overlay.style.display = 'none', 2500);
+}
+
+function sauvegarderLocalement() {
+    localStorage.setItem('smartcheck_db', JSON.stringify(BaseDonneesInvites));
+}
+
+function reinitialiserLocale() {
+    if (confirm("Vider le cache ?")) {
+        BaseDonneesInvites = [];
+        sauvegarderLocalement();
+        MettreAJourAffichage();
+    }
+}
+</script>
 </body>
 </html>
