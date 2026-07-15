@@ -7,7 +7,7 @@
 
 <!-- CONFIGURATION PWA -->
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#2ec4b6">
+<meta name="theme-color" content="#f39c12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
@@ -17,14 +17,14 @@
 
 <style>
 :root {
-    --primary: #2ec4b6;
-    --primary-dark: #0f9f90;
+    --primary: #f39c12;         /* Orange Vif */
+    --primary-dark: #d35400;    /* Orange Foncé */
     --success: #2ecc71;
     --danger: #e74c3c;
     --warning: #f1c40f;
     --dark: #2c3e50;
-    --bg: #f4f9f8;
-    --card-shadow: 0 4px 20px rgba(46, 196, 182, 0.08);
+    --bg: #fdfaf6;              /* Fond très légèrement chaud */
+    --card-shadow: 0 4px 20px rgba(243, 156, 18, 0.08);
 }
 
 body {
@@ -171,7 +171,7 @@ h1 span {
 
 .guest-item {
     padding: 12px 15px;
-    border-bottom: 1px solid #f1f9f8;
+    border-bottom: 1px solid #fdf5eb;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -190,8 +190,8 @@ h1 span {
 
 .guest-table-badge {
     display: inline-block;
-    background: #e2e8f0;
-    color: #475569;
+    background: #fdf5eb;
+    color: var(--primary-dark);
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 4px;
@@ -219,7 +219,7 @@ button.btn-main {
     font-weight: bold;
     border-radius: 14px;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(46, 196, 182, 0.25);
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.25);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -237,7 +237,6 @@ button.btn-secondary {
     cursor: pointer;
 }
 
-/* Styles de l'écran flash mis à jour */
 #scan-overlay {
     display: none;
     position: fixed;
@@ -399,7 +398,6 @@ function demarrerScan() {
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
 
-// Nettoyage intelligent des URLs provenant de Tally / QR codes
 function extraireNomDepuisTexte(texte) {
     if (!texte) return '';
     texte = texte.trim();
@@ -430,7 +428,6 @@ function onScanSuccess(decodedText) {
             let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
             let tableText = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : '';
             
-            // Ordre : Statut -> Nom de l'invité -> Table -> Heure
             declencherFlash(
                 `<div class="flash-title">Déjà Scanné ! ⚠️</div>
                  <div class="flash-name">${extraireNomDepuisTexte(invite.nom)}</div>
@@ -467,7 +464,6 @@ async function validerEntree(invite, estNouveau = false) {
     let nomPropre = extraireNomDepuisTexte(invite.nom);
     let tableHtml = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : `<div class="flash-table">📍 Pas de table assignée</div>`;
     
-    // Ordre : Statut -> Nom de l'invité -> Table
     declencherFlash(
         `<div class="flash-title">Accès Autorisé ✅</div>
          <div class="flash-name">${nomPropre}</div>
