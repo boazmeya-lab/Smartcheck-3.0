@@ -237,6 +237,7 @@ button.btn-secondary {
     cursor: pointer;
 }
 
+/* Styles de l'écran flash mis à jour */
 #scan-overlay {
     display: none;
     position: fixed;
@@ -253,27 +254,37 @@ button.btn-secondary {
 }
 
 .flash-title {
-    font-size: 28px;
-    margin-bottom: 10px;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    opacity: 0.9;
 }
 
 .flash-name {
-    font-size: 32px;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 10px 20px;
-    border-radius: 12px;
-    margin: 15px 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    font-size: 36px;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 12px 25px;
+    border-radius: 16px;
+    margin: 10px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    word-break: break-word;
+    max-width: 90%;
 }
 
 .flash-table {
-    font-size: 22px;
-    font-weight: 600;
-    background: #fff;
+    font-size: 26px;
+    font-weight: 800;
+    background: #ffffff;
     color: #1e293b;
-    padding: 6px 16px;
-    border-radius: 8px;
-    margin-top: 5px;
+    padding: 12px 30px;
+    border-radius: 14px;
+    margin-top: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 </style>
 </head>
@@ -388,7 +399,7 @@ function demarrerScan() {
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
 
-// Nettoie n'importe quelle chaîne si c'est une URL
+// Nettoyage intelligent des URLs provenant de Tally / QR codes
 function extraireNomDepuisTexte(texte) {
     if (!texte) return '';
     texte = texte.trim();
@@ -404,22 +415,27 @@ function extraireNomDepuisTexte(texte) {
     return texte;
 }
 
+function normaliserTexte(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 function onScanSuccess(decodedText) {
     let nomScanne = extraireNomDepuisTexte(decodedText);
     html5QrcodeScanner.clear().catch(err => console.log(err));
     
-    // Recherche intelligente (compare uniquement les noms nettoyés)
-    let invite = BaseDonneesInvites.find(g => extraireNomDepuisTexte(g.nom).toLowerCase() === nomScanne.toLowerCase());
+    let invite = BaseDonneesInvites.find(g => normaliserTexte(extraireNomDepuisTexte(g.nom)) === normaliserTexte(nomScanne));
     
     if (invite) {
         if (invite.statut === 'Présent') {
-            let detailHeure = invite.heure ? 'Présent depuis ' + invite.heure : '';
-            let tableText = invite.table ? `<br><div class="flash-table">📍 ${invite.table}</div>` : '';
+            let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
+            let tableText = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : '';
+            
+            // Ordre : Statut -> Nom de l'invité -> Table -> Heure
             declencherFlash(
                 `<div class="flash-title">Déjà Scanné ! ⚠️</div>
                  <div class="flash-name">${extraireNomDepuisTexte(invite.nom)}</div>
-                 <span style="font-size:16px;">${detailHeure}</span>
-                 ${tableText}`, 
+                 ${tableText}
+                 <span style="font-size:16px; margin-top:15px; display:block; opacity:0.8;">${detailHeure}</span>`, 
                 'var(--danger)'
             );
             relancerScanneurApresDelai();
@@ -427,7 +443,7 @@ function onScanSuccess(decodedText) {
             validerEntree(invite);
         }
     } else {
-        let nouvelInvite = { nom: nomScanne, statut: 'Absent', heure: '', table: '' };
+        let nouvelInvite = { nom: nomScanne, statut: 'Absent', heure: '', table: 'Aucune table' };
         validerEntree(nouvelInvite, true);
     }
 }
@@ -449,8 +465,9 @@ async function validerEntree(invite, estNouveau = false) {
     MettreAJourAffichage();
     
     let nomPropre = extraireNomDepuisTexte(invite.nom);
-    let tableHtml = invite.table ? `<div class="flash-table">📍 Table : ${invite.table}</div>` : `<div class="flash-table">📍 Pas de table assignée</div>`;
+    let tableHtml = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : `<div class="flash-table">📍 Pas de table assignée</div>`;
     
+    // Ordre : Statut -> Nom de l'invité -> Table
     declencherFlash(
         `<div class="flash-title">Accès Autorisé ✅</div>
          <div class="flash-name">${nomPropre}</div>
@@ -504,11 +521,11 @@ async function synchroniserDonnees() {
 }
 
 function filtrerInvites() {
-    let query = document.getElementById('search-input').value.toLowerCase();
+    let query = normaliserTexte(document.getElementById('search-input').value);
     let listeDiv = document.getElementById('liste-invites');
     listeDiv.innerHTML = '';
     
-    let invitesFiltres = BaseDonneesInvites.filter(g => extraireNomDepuisTexte(g.nom).toLowerCase().includes(query));
+    let invitesFiltres = BaseDonneesInvites.filter(g => normaliserTexte(extraireNomDepuisTexte(g.nom)).includes(query));
     
     if(invitesFiltres.length === 0) {
         listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité.</p>';
