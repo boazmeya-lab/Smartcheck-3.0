@@ -1,0 +1,225 @@
+import React, { useState } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Heading1, Type, InputIcon, Eye, Code, FileText, Trash2 } from 'lucide-react';
+
+// Structure des blocs de notre formulaire
+interface FormElement {
+  id: string;
+  type: 'heading' | 'text' | 'input' | 'textarea';
+  label: string;
+  placeholder?: string;
+}
+
+export default function TallyEditor() {
+  const [elements, setElements] = useState<FormElement[]>([
+    { id: '1', type: 'heading', label: 'Titre de votre formulaire' },
+    { id: '2', type: 'text', label: "Cliquez ici pour rédiger ou tapez '/' pour insérer un champ." }
+  ]);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [slashMenu, setSlashMenu] = useState<{ open: boolean; x: number; y: number; elementIndex: number | null }>({
+    open: false,
+    x: 0,
+    y: 0,
+    elementIndex: null
+  });
+
+  // Configuration de l'éditeur Tiptap principal
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: '<p></p>',
+    editorProps: {
+      attributes: {
+        class: 'prose max-w-none focus:outline-none min-h-[150px] text-gray-700 leading-relaxed',
+      },
+    },
+  });
+
+  // Détecter le caractère "/" pour ouvrir le menu
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === '/') {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setSlashMenu({
+        open: true,
+        // Aligne le menu juste en dessous du champ actif
+        x: rect.left,
+        y: rect.bottom + window.scrollY,
+        elementIndex: index
+      });
+    }
+  };
+
+  // Insérer un nouveau bloc interactif dans notre liste d'éléments
+  const insertBlock = (type: FormElement['type']) => {
+    if (slashMenu.elementIndex === null) return;
+
+    const newElement: FormElement = {
+      id: Date.now().toString(),
+      type,
+      label: type === 'input' ? 'Question sans titre' : 'Nouveau paragraphe',
+      placeholder: type === 'input' ? 'Saisissez votre réponse...' : undefined
+    };
+
+    const updated = [...elements];
+    
+    // Si on a tapé "/" dans un bloc de texte vide, on remplace ce bloc par le nouveau composant.
+    // Sinon, on l'ajoute juste en dessous.
+    if (updated[slashMenu.elementIndex].label === '/' || updated[slashMenu.elementIndex].label === '') {
+      updated[slashMenu.elementIndex] = newElement;
+    } else {
+      // Nettoie le "/" du champ textuel actuel
+      updated[slashMenu.elementIndex].label = updated[slashMenu.elementIndex].label.replace('/', '');
+      updated.splice(slashMenu.elementIndex + 1, 0, newElement);
+    }
+
+    setElements(updated);
+    setSlashMenu({ open: false, x: 0, y: 0, elementIndex: null });
+  };
+
+  const updateLabel = (id: string, value: string) => {
+    setElements(elements.map(el => el.id === id ? { ...el, label: value } : el));
+  };
+
+  const deleteElement = (id: string) => {
+    setElements(elements.filter(el => el.id !== id));
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto my-12 p-12 bg-white min-h-[80vh] shadow-sm rounded-2xl border border-gray-100 relative">
+      
+      {/* Barre d'actions supérieure */}
+      <div className="flex justify-between items-center mb-10 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-2 text-gray-400 text-sm">
+          <FileText className="w-4 h-4 text-violet-500" />
+          <span className="font-medium text-gray-600">Smartcheck 3.0</span>
+        </div>
+        <button
+          onClick={() => setPreviewMode(!previewMode)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all"
+        >
+          {previewMode ? <Code className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {previewMode ? 'Mode Éditeur' : 'Consulter le rendu'}
+        </button>
+      </div>
+
+      {/* Zone de l'éditeur */}
+      <div className="space-y-6">
+        {elements.map((el, index) => (
+          <div key={el.id} className="group relative">
+            {previewMode ? (
+              // --- MODE PRÉVISUALISATION (RENDU PUBLIC) ---
+              <div className="py-2">
+                {el.type === 'heading' && <h1 className="text-3xl font-extrabold text-gray-900 mb-2">{el.label}</h1>}
+                {el.type === 'text' && <p className="text-gray-600 leading-relaxed text-lg">{el.label}</p>}
+                {el.type === 'input' && (
+                  <div className="space-y-1.5 mt-4">
+                    <label className="block text-sm font-semibold text-gray-700">{el.label}</label>
+                    <input 
+                      type="text" 
+                      placeholder={el.placeholder} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              // --- MODE ÉDITEUR TALLY (CRÉATION DE CONTENU) ---
+              <div className="flex items-center justify-between gap-4 border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all">
+                <div className="w-full">
+                  {el.type === 'heading' ? (
+                    <input
+                      type="text"
+                      value={el.label}
+                      onChange={(e) => updateLabel(el.id, e.target.value)}
+                      className="w-full text-3xl font-extrabold text-gray-900 bg-transparent outline-none border-b border-transparent focus:border-gray-200 py-1"
+                      placeholder="Titre du formulaire"
+                    />
+                  ) : el.type === 'text' ? (
+                    <input
+                      type="text"
+                      value={el.label}
+                      onChange={(e) => updateLabel(el.id, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, index)}
+                      className="w-full text-gray-700 bg-transparent outline-none py-1 text-lg placeholder-gray-300"
+                      placeholder="Tapez du texte ou '/' pour insérer un élément..."
+                    />
+                  ) : (
+                    <div className="w-full p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="flex items-center gap-2 text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">
+                        <InputIcon className="w-3.5 h-3.5" /> Question (Réponse courte)
+                      </div>
+                      <input
+                        type="text"
+                        value={el.label}
+                        onChange={(e) => updateLabel(el.id, e.target.value)}
+                        className="w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b border-transparent focus:border-violet-400 pb-1"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Bouton de suppression de bloc au survol */}
+                {elements.length > 1 && (
+                  <button
+                    onClick={() => deleteElement(el.id)}
+                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Rendu masqué de Tiptap requis pour l'initialisation */}
+      <div className="hidden">
+        <EditorContent editor={editor} />
+      </div>
+
+      {/* Menu Pop-up / Slash flottant */}
+      {slashMenu.open && !previewMode && (
+        <div 
+          className="absolute z-50 w-64 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex flex-col gap-1"
+          style={{ top: `${slashMenu.y - 100}px`, left: `${slashMenu.x}px` }}
+        >
+          <div className="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Insérer un élément
+          </div>
+          
+          <button 
+            onClick={() => insertBlock('input')}
+            className="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg transition-colors"
+          >
+            <div className="p-1.5 bg-violet-50 text-violet-600 rounded-md">
+              <InputIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Champ de réponse</p>
+              <p className="text-xs text-gray-400">Pour collecter des saisies courtes</p>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => insertBlock('text')}
+            className="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <div className="p-1.5 bg-gray-100 text-gray-600 rounded-md">
+              <Type className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Texte standard</p>
+              <p className="text-xs text-gray-400">Écrire un paragraphe simple</p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Fermeture du menu si clic en dehors */}
+      {slashMenu.open && (
+        <div className="fixed inset-0 z-40" onClick={() => setSlashMenu({ ...slashMenu, open: false })} />
+      )}
+    </div>
+  );
+}
