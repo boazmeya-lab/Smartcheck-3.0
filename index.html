@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smartcheck 3.0 - Form Builder</title>
+  <title>Smartcheck 3.0 - Form Builder AI</title>
   
-  <!-- Importation de Tailwind CSS pour un design ultra-propre style Tally -->
+  <!-- Importation de Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons pour les icônes de l'éditeur -->
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
-    /* Style minimaliste pour la sélection et la transition */
     .block-input:focus {
       outline: none;
     }
@@ -19,14 +18,14 @@
 </head>
 <body class="bg-gray-50/50 min-h-screen py-12 px-4 text-gray-800">
 
-  <!-- Éditeur principal style Tally -->
+  <!-- Éditeur principal -->
   <div class="max-w-3xl mx-auto bg-white min-h-[80vh] shadow-sm rounded-2xl border border-gray-100 p-12 relative">
     
     <!-- Barre d'outils supérieure -->
     <div class="flex justify-between items-center mb-10 pb-4 border-b border-gray-100">
       <div class="flex items-center gap-2 text-gray-400 text-sm">
-        <i data-lucide="file-text" class="w-4 h-4 text-violet-500"></i>
-        <span class="font-medium text-gray-600">Smartcheck 3.0</span>
+        <i data-lucide="sparkles" class="w-4 h-4 text-violet-500 animate-pulse"></i>
+        <span class="font-medium text-gray-600">Smartcheck AI 3.0</span>
       </div>
       <button id="toggle-mode" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all">
         <i data-lucide="eye" class="w-4 h-4"></i>
@@ -36,22 +35,21 @@
 
     <!-- Zone des Blocs du Formulaire -->
     <form id="form-container" class="space-y-6">
-      <!-- Les blocs dynamiques s'insèrent ici. En voici deux par défaut : -->
       
       <!-- Bloc 1 : Titre principal -->
       <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="heading">
         <div class="flex items-center justify-between gap-4">
-          <input type="text" class="block-input w-full text-3xl font-extrabold text-gray-900 bg-transparent py-1 placeholder-gray-300" value="Smartcheck 3.0" placeholder="Titre de votre formulaire">
+          <input type="text" class="block-input w-full text-3xl font-extrabold text-gray-900 bg-transparent py-1 placeholder-gray-300" value="Mon Formulaire Intelligent" placeholder="Titre de votre formulaire">
           <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
 
-      <!-- Bloc 2 : Texte d'introduction -->
+      <!-- Bloc 2 : Texte d'introduction avec invite IA -->
       <div class="form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all" data-type="text">
         <div class="flex items-center justify-between gap-4">
-          <input type="text" class="block-input w-full text-gray-600 bg-transparent py-1 text-lg placeholder-gray-300" value="Cliquez ici pour rédiger ou tapez '/' pour insérer un champ." placeholder="Tapez du texte ou '/' pour insérer un champ...">
+          <input type="text" class="block-input w-full text-gray-600 bg-transparent py-1 text-lg placeholder-gray-300" value="" placeholder="Appuyez sur 'Espace' pour l'IA, ou '/' pour insérer un champ...">
           <button type="button" class="delete-btn opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
@@ -60,28 +58,20 @@
 
     </form>
 
-    <!-- Menu Pop-up / Slash flottant (Caché par défaut) -->
+    <!-- ================= MENU SLASH (/) ================= -->
     <div id="slash-menu" class="hidden absolute z-50 w-64 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex flex-col gap-1">
-      <div class="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        Insérer un élément
-      </div>
+      <div class="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Insérer un élément</div>
       
-      <!-- Bouton d'ajout de champ de réponse -->
       <button type="button" onclick="insertNewBlock('input')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg transition-colors">
-        <div class="p-1.5 bg-violet-50 text-violet-600 rounded-md">
-          <i data-lucide="text-cursor-input" class="w-4 h-4"></i>
-        </div>
+        <div class="p-1.5 bg-violet-50 text-violet-600 rounded-md"><i data-lucide="text-cursor-input" class="w-4 h-4"></i></div>
         <div>
           <p class="font-semibold text-gray-900">Champ de réponse</p>
-          <p class="text-xs text-gray-400">Pour collecter des réponses courtes</p>
+          <p class="text-xs text-gray-400">Collecter des réponses courtes</p>
         </div>
       </button>
 
-      <!-- Bouton d'ajout de texte standard -->
       <button type="button" onclick="insertNewBlock('text')" class="flex items-center gap-3 w-full px-2 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-        <div class="p-1.5 bg-gray-100 text-gray-600 rounded-md">
-          <i data-lucide="type" class="w-4 h-4"></i>
-        </div>
+        <div class="p-1.5 bg-gray-100 text-gray-600 rounded-md"><i data-lucide="type" class="w-4 h-4"></i></div>
         <div>
           <p class="font-semibold text-gray-900">Texte standard</p>
           <p class="text-xs text-gray-400">Écrire un paragraphe simple</p>
@@ -89,22 +79,40 @@
       </button>
     </div>
 
+    <!-- ================= CONSOLE IA (Espace) ================= -->
+    <div id="ai-menu" class="hidden absolute z-50 w-80 bg-slate-900 text-white shadow-2xl rounded-xl p-3 flex flex-col gap-2 border border-slate-800">
+      <div class="flex items-center gap-1.5 px-1 text-xs font-semibold text-violet-400 uppercase tracking-wider">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 animate-pulse"></i> Assistant IA Smartcheck
+      </div>
+      <div class="flex gap-2">
+        <input id="ai-prompt" type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-violet-500 placeholder:text-slate-500" placeholder="Ex: Génère un formulaire de contact...">
+        <button type="button" id="ai-submit" class="bg-violet-600 hover:bg-violet-500 text-white p-2 rounded-lg transition-colors">
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="ai-status" class="text-xxs text-slate-400 px-1 hidden flex items-center gap-2">
+        <span class="inline-block w-2 h-2 bg-violet-500 rounded-full animate-ping"></span> L'IA réfléchit...
+      </div>
+    </div>
+
   </div>
 
-  <!-- Script interactif (Le moteur de l'application) -->
   <script>
-    // Initialise les icônes lucide
     lucide.createIcons();
 
     const formContainer = document.getElementById('form-container');
     const slashMenu = document.getElementById('slash-menu');
+    const aiMenu = document.getElementById('ai-menu');
+    const aiPrompt = document.getElementById('ai-prompt');
+    const aiSubmit = document.getElementById('ai-submit');
+    const aiStatus = document.getElementById('ai-status');
     const toggleBtn = document.getElementById('toggle-mode');
     const btnText = document.getElementById('btn-text');
     
     let previewMode = false;
-    let activeInputForSlash = null;
+    let activeInput = null;
 
-    // Détecteur de touche "/"
+    // Écouteur d'événements clavier
     formContainer.addEventListener('keyup', function(e) {
       if (previewMode) return;
 
@@ -112,56 +120,62 @@
         const value = e.target.value;
         const currentBlock = e.target.closest('.form-block');
         const blockType = currentBlock.getAttribute('data-type');
+        activeInput = e.target;
 
-        // On n'active le menu slash que sur les blocs de type texte standard
+        // 1. Déclencheur du menu SLASH '/'
         if (value.endsWith('/') && blockType === 'text') {
-          activeInputForSlash = e.target;
-          
-          // Positionner le menu juste sous l'input actif
-          const rect = e.target.getBoundingClientRect();
-          const containerRect = formContainer.parentElement.getBoundingClientRect();
-
-          slashMenu.style.top = `${rect.bottom - containerRect.top + 10}px`;
-          slashMenu.style.left = `${rect.left - containerRect.left}px`;
+          positionElementUnderInput(slashMenu, e.target);
           slashMenu.classList.remove('hidden');
+          aiMenu.classList.add('hidden');
+        } 
+        // 2. Déclencheur de l'IA 'Espace' (si le champ est vide)
+        else if (e.key === ' ' && value.trim() === '' && blockType === 'text') {
+          e.preventDefault();
+          positionElementUnderInput(aiMenu, e.target);
+          aiMenu.classList.remove('hidden');
+          slashMenu.classList.add('hidden');
+          aiPrompt.focus();
         }
       }
     });
 
-    // Fonction d'insertion de bloc
-    function insertNewBlock(type) {
-      if (!activeInputForSlash) return;
+    function positionElementUnderInput(element, input) {
+      const rect = input.getBoundingClientRect();
+      const containerRect = formContainer.parentElement.getBoundingClientRect();
+      element.style.top = `${rect.bottom - containerRect.top + 8}px`;
+      element.style.left = `${rect.left - containerRect.left}px`;
+    }
 
-      const currentBlock = activeInputForSlash.closest('.form-block');
+    // Insertion d'un bloc standard
+    function insertNewBlock(type, labelValue = '') {
+      if (!activeInput) return;
+      const currentBlock = activeInput.closest('.form-block');
       
-      // Nettoyer le "/" saisi
-      activeInputForSlash.value = activeInputForSlash.value.replace('/', '');
+      // Nettoyer les caractères déclencheurs
+      activeInput.value = activeInput.value.replace('/', '');
 
-      // Création du nouveau bloc
       const newBlock = document.createElement('div');
       newBlock.className = 'form-block group relative border-l-2 border-transparent hover:border-violet-300 pl-4 transition-all';
       newBlock.setAttribute('data-type', type);
 
       let contentHTML = '';
-
       if (type === 'input') {
         contentHTML = `
           <div class="w-full p-4 bg-gray-50 rounded-xl border border-gray-100 my-2">
             <div class="flex items-center gap-2 text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">
-              <i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i> Question (Réponse courte)
+              <i data-lucide="text-cursor-input" class="w-3.5 h-3.5"></i> Question
             </div>
-            <input type="text" class="block-input w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b border-transparent focus:border-violet-400 pb-1" value="Question sans titre" placeholder="Votre question...">
+            <input type="text" class="block-input w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b border-transparent focus:border-violet-400 pb-1" value="${labelValue || 'Question sans titre'}" placeholder="Votre question...">
           </div>
         `;
       } else {
         contentHTML = `
           <div class="flex items-center justify-between gap-4">
-            <input type="text" class="block-input w-full text-gray-700 bg-transparent py-1 text-lg placeholder-gray-300" value="" placeholder="Tapez du texte ou '/' pour insérer un élément...">
+            <input type="text" class="block-input w-full text-gray-700 bg-transparent py-1 text-lg placeholder-gray-300" value="${labelValue}" placeholder="Appuyez sur 'Espace' pour l'IA, ou '/' pour insérer un champ...">
           </div>
         `;
       }
 
-      // Ajout du bouton de suppression générique
       newBlock.innerHTML = `
         <div class="flex items-center justify-between gap-4">
           <div class="w-full">${contentHTML}</div>
@@ -171,30 +185,68 @@
         </div>
       `;
 
-      // Insérer le bloc juste après le bloc actuel
       currentBlock.after(newBlock);
-
-      // Fermer le menu et rafraîchir les icônes
-      hideSlashMenu();
+      hideMenus();
       lucide.createIcons();
-      
-      // Focus automatique sur le nouveau champ créé
       newBlock.querySelector('.block-input').focus();
     }
 
-    // Gestion de la suppression de bloc
+    // ================= APPEL API IA (HUGGING FACE) =================
+    async function askAI() {
+      const promptValue = aiPrompt.value.trim();
+      if (!promptValue) return;
+
+      aiStatus.classList.remove('hidden');
+      aiSubmit.disabled = true;
+
+      try {
+        // Nous interrogeons un modèle d'IA ultra-rapide capable de structurer du texte
+        const response = await fetch("https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            inputs: `<|system|>\nTu es un assistant qui génère uniquement des questions de formulaires claires et concises en français basées sur la consigne. Donne les questions séparées par des virgules sans numérotation.</s>\n<|user|>\nGénère 3 questions de formulaire pour : ${promptValue}</s>\n<|assistant|>\n`,
+            parameters: { max_new_tokens: 150, temperature: 0.7 }
+          })
+        });
+
+        const data = await response.json();
+        const generatedText = data[0].generated_text.split('<|assistant|>\n')[1] || "";
+        
+        // Nettoyer et séparer les questions trouvées
+        const questions = generatedText.split(/[,\n]/).map(q => q.replace(/^[-\d.\s]+/, '').trim()).filter(q => q.length > 5);
+
+        if (questions.length > 0) {
+          questions.forEach(question => {
+            insertNewBlock('input', question);
+          });
+        } else {
+          insertNewBlock('text', "Désolé, l'IA n'a pas pu formuler de questions claires. Réessayez !");
+        }
+
+      } catch (error) {
+        console.error(error);
+        insertNewBlock('text', "Erreur de connexion avec l'IA. Veuillez réessayer.");
+      } finally {
+        aiStatus.classList.add('hidden');
+        aiSubmit.disabled = false;
+        aiPrompt.value = '';
+        hideMenus();
+      }
+    }
+
+    aiSubmit.addEventListener('click', askAI);
+    aiPrompt.addEventListener('keypress', (e) => { if (e.key === 'Enter') askAI(); });
+
+    // Gestion de la suppression
     formContainer.addEventListener('click', function(e) {
       const deleteBtn = e.target.closest('.delete-btn');
-      if (deleteBtn) {
-        const block = deleteBtn.closest('.form-block');
-        // On évite de supprimer le dernier bloc restant pour ne pas vider l'écran
-        if (document.querySelectorAll('.form-block').length > 1) {
-          block.remove();
-        }
+      if (deleteBtn && document.querySelectorAll('.form-block').length > 1) {
+        deleteBtn.closest('.form-block').remove();
       }
     });
 
-    // Basculer entre l'édition et le rendu final
+    // Basculement Mode Prévisualisation
     toggleBtn.addEventListener('click', function() {
       previewMode = !previewMode;
       const blocks = document.querySelectorAll('.form-block');
@@ -207,45 +259,37 @@
           const type = block.getAttribute('data-type');
           const input = block.querySelector('.block-input');
           const deleteBtn = block.querySelector('.delete-btn');
-          
-          if (deleteBtn) deleteBtn.classList.add('hidden'); // Cacher la corbeille
+          if (deleteBtn) deleteBtn.classList.add('hidden');
 
           if (type === 'heading') {
-            // Transforme le titre éditable en vrai titre H1 fixe
-            const value = input.value || "Formulaire sans titre";
-            block.innerHTML = `<h1 class="text-3xl font-extrabold text-gray-900 mb-2">${value}</h1>`;
+            block.innerHTML = `<h1 class="text-3xl font-extrabold text-gray-900 mb-2">${input.value || "Formulaire"}</h1>`;
           } else if (type === 'text') {
-            // Transforme le paragraphe d'écriture en un texte de paragraphe
-            const value = input.value || "";
-            block.innerHTML = `<p class="text-gray-600 leading-relaxed text-lg">${value}</p>`;
+            block.innerHTML = `<p class="text-gray-600 leading-relaxed text-lg">${input.value || ""}</p>`;
           } else if (type === 'input') {
-            // Crée un vrai champ d'entrée de formulaire utilisateur propre
-            const questionText = input.value || "Question sans titre";
             block.innerHTML = `
               <div class="space-y-1.5 mt-4">
-                <label class="block text-sm font-semibold text-gray-700">${questionText}</label>
-                <input type="text" placeholder="Saisissez votre réponse..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 text-sm">
+                <label class="block text-sm font-semibold text-gray-700">${input.value || "Question"}</label>
+                <input type="text" placeholder="Votre réponse..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-sm">
               </div>
             `;
           }
         });
       } else {
-        // Recharge la page ou ré-actualise pour sortir du rendu et repasser en édition complète
         window.location.reload();
       }
       lucide.createIcons();
     });
 
-    // Fermer le menu si clic à l'extérieur
+    // Fermeture des menus lors d'un clic extérieur
     document.addEventListener('click', function(e) {
-      if (!slashMenu.contains(e.target) && (!activeInputForSlash || e.target !== activeInputForSlash)) {
-        hideSlashMenu();
+      if (!slashMenu.contains(e.target) && !aiMenu.contains(e.target) && e.target !== activeInput) {
+        hideMenus();
       }
     });
 
-    function hideSlashMenu() {
+    function hideMenus() {
       slashMenu.classList.add('hidden');
-      activeInputForSlash = null;
+      aiMenu.classList.add('hidden');
     }
   </script>
 </body>
