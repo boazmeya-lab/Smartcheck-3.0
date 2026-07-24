@@ -117,6 +117,7 @@ h1 span {
     color: var(--primary);
 }
 
+/* Modification de la grille pour afficher 3 cartes de manière équilibrée */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -134,7 +135,11 @@ h1 span {
 }
 
 .stat-box.success { border-left-color: var(--success); }
-.stat-box.warning { border-left-color: var(--warning); }
+
+/* La 3e carte occupe la largeur complète */
+.stat-box.full-width {
+    grid-column: span 2;
+}
 
 .stat-number {
     font-size: 24px;
@@ -307,11 +312,7 @@ button.btn-secondary {
                 <div id="stat-present" class="stat-number">0</div>
                 <div class="stat-label">Présents</div>
             </div>
-            <div class="stat-box warning">
-                <div id="stat-absent" class="stat-number">0</div>
-                <div class="stat-label">Absents</div>
-            </div>
-            <div class="stat-box">
+            <div class="stat-box full-width">
                 <div id="stat-ratio" class="stat-number">0%</div>
                 <div class="stat-label">Taux d'accès</div>
             </div>
@@ -576,12 +577,10 @@ async function testerConnexion() {
 function MettreAJourAffichage() {
     let total = BaseDonneesInvites.length;
     let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent').length;
-    let absents = total - presents;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
     document.getElementById('stat-total').innerText = total;
     document.getElementById('stat-present').innerText = presents;
-    document.getElementById('stat-absent').innerText = absents;
     document.getElementById('stat-ratio').innerText = ratio + '%';
     
     filtrerInvites();
