@@ -506,7 +506,7 @@ async function validerEntree(invite, estNouveau = false) {
 function relancerScanneurApresDelai() {
     setTimeout(() => {
         if (document.getElementById('view-scanner').classList.contains('active')) {
-            demarrerScan();
+            demarrerScan()
         }
     }, 2500);
 }
@@ -517,7 +517,11 @@ async function synchroniserDonnees() {
         return;
     }
     try {
-        let response = await fetch(`${WebhookUrl}?action=getGuests`);
+        let response = await fetch(WebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getGuests' })
+        });
         if (response.ok) {
             let donnees = await response.json(); 
             if (Array.isArray(donnees)) {
@@ -532,7 +536,7 @@ async function synchroniserDonnees() {
     } catch (e) {
         alert("Erreur de connexion avec le serveur n8n.");
     }
-}
+    }
 
 function filtrerInvites() {
     let query = normaliserTexte(document.getElementById('search-input').value);
