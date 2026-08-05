@@ -12,22 +12,69 @@ function extraireNom(guest) {
     if (!guest) return 'Nom Inconnu';
     return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || 'Invité sans nom';
 }
-// Ne vérifie STRICTEMENT que le scan à l'entrée, pas le formulaire RSVP
+
+// 1. Vérification basée UNIQUEMENT sur le scan à l'entrée
 function verifierPresence(guest) {
     if (!guest) return false;
     
-    // On ne regarde QUE la colonne de scan / enregistrement physique
-    if (guest.scan === true) return true;
+    // Si l'invité a été scanné durant la session locale
+    if (guest.scan_effectue === true) return true;
     
-    let scanVal = guest.scan_status || guest.status_scan || guest.scanne;
+    // Vérification stricte d'un champ dédié au scan en BDD (et non la colonne 'présence' du RSVP)
+    let scanVal = guest.scan_status || guest.statut_scan;
     if (typeof scanVal === 'string') {
         let cleanVal = scanVal.trim().toLowerCase();
-        return cleanVal === 'présent' || cleanVal === 'present' || cleanVal === 'scanné';
+        return cleanVal === 'présent' || cleanVal === 'scanné';
     }
     
     return false;
 }
 
+// 2. Validation lors du scan
+async function validerEntree(invite) {
+    let maintenant = new Date();
+    let heureActuelle = maintenant.getHours().toString().padStart(2, '0') + ':' + maintenant.getMinutes().toString().padStart(2, '0');
+    
+    // On marque le scan comme effectué
+    invite.scan_effectue = true;
+    invite.scan_status = 'Présent';
+    invite.heure = heureActuelle;
+
+    sauvegarderLocalement();
+    MettreAJourAffichage();
+    
+    let nomPropre = extraireNom(invite);
+    let displayTable = (invite.tableau || invite.table);
+    let tableHtml = (displayTable && displayTable !== 'N/A' && displayTable !== 'Non attribuée') 
+        ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> Table : ${displayTable}</div>` 
+        : `<div class="flash-table">📍 Sans Table</div>`;
+
+    declencherFlash(
+        `<div class="flash-title">Accès Autorisé ✅</div>
+         <div class="flash-name">${nomPropre}</div>
+         ${tableHtml}`, 
+        'var(--success)'
+    );
+
+    if (WebhookUrl) {
+        try {
+            await fetch(WebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'checkin', 
+                    ticket_id: invite.ticket_id, 
+                    nom_complet: nomPropre, 
+                    heure: heureActuelle,
+                    scan_status: 'Présent'
+                })
+            });
+        } catch (e) {
+            console.error("Erreur Webhook", e);
+        }
+    }
+    relancerScanneurApresDelai();
+}
 
 function switchView(viewId, element) {
     document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
