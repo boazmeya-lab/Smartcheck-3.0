@@ -384,6 +384,12 @@ let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
 document.getElementById('webhook-url').value = WebhookUrl;
 MettreAJourAffichage();
 
+// Récupère intelligemment le nom selon les différentes colonnes Supabase possibles
+function extraireNom(guest) {
+    if (!guest) return 'Nom Inconnu';
+    return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || guest.ticket_id || 'Invité';
+}
+
 function switchView(viewId, element) {
     document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
     document.getElementById(`view-${viewId}`).classList.add('active');
@@ -412,14 +418,14 @@ function onScanSuccess(decodedText) {
     let codeScanne = decodedText.trim();
     html5QrcodeScanner.clear().catch(err => console.log(err));
     
-    // Recherche prioritaire par Ticket ID (Ex: TICK-123456) puis par Nom
     let invite = BaseDonneesInvites.find(g => 
         (g.ticket_id && g.ticket_id.toUpperCase() === codeScanne.toUpperCase()) ||
-        normaliserTexte(g.nom_complet || g.nom) === normaliserTexte(codeScanne)
+        normaliserTexte(extraireNom(g)) === normaliserTexte(codeScanne)
     );
     
     if (invite) {
-        if (invite.statut === 'Présent' || invite.scan_status === 'Présent') {
+        let estPresent = (invite.statut === 'Présent' || invite.scan_status === 'Présent' || invite.scan === true);
+        if (estPresent) {
             let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
             let tableText = (invite.table && invite.table !== 'N/A') 
                 ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
@@ -427,7 +433,7 @@ function onScanSuccess(decodedText) {
             
             declencherFlash(
                 `<div class="flash-title">Déjà Scanné ! ⚠️</div>
-                 <div class="flash-name">${invite.nom_complet || invite.nom}</div>
+                 <div class="flash-name">${extraireNom(invite)}</div>
                  ${tableText}
                  <span class="flash-extra">${detailHeure}</span>`, 
                 'var(--danger)'
@@ -437,7 +443,6 @@ function onScanSuccess(decodedText) {
             validerEntree(invite);
         }
     } else {
-        // Ticket inconnu dans la base locale
         let nouvelInvite = { 
             ticket_id: codeScanne.startsWith('TICK-') ? codeScanne : 'INCONNU', 
             nom_complet: codeScanne, 
@@ -456,6 +461,7 @@ async function validerEntree(invite, estNouveau = false) {
     
     invite.statut = 'Présent';
     invite.scan_status = 'Présent';
+    invite.scan = true;
     invite.heure = heureActuelle;
 
     if (estNouveau) {
@@ -465,7 +471,7 @@ async function validerEntree(invite, estNouveau = false) {
     sauvegarderLocalement();
     MettreAJourAffichage();
     
-    let nomPropre = invite.nom_complet || invite.nom;
+    let nomPropre = extraireNom(invite);
     let tableHtml = (invite.table && invite.table !== 'N/A') 
         ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
         : `<div class="flash-table">📍 Table Non attribuée</div>`;
@@ -482,10 +488,9 @@ async function validerEntree(invite, estNouveau = false) {
         'var(--success)'
     );
 
-    // Synchronisation avec n8n pour mise à jour Supabase
     if (WebhookUrl) {
         try {
-            await fetch(WebhookUrl, {
+            let res = await fetch(WebhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -496,6 +501,15 @@ async function validerEntree(invite, estNouveau = false) {
                     table: invite.table 
                 })
             });
+            
+            if (res.ok) {
+                let data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    BaseDonneesInvites = data;
+                    sauvegarderLocalement();
+                    MettreAJourAffichage();
+                }
+            }
         } catch (e) {
             console.error("Erreur de synchronisation Webhook", e);
         }
@@ -506,7 +520,7 @@ async function validerEntree(invite, estNouveau = false) {
 function relancerScanneurApresDelai() {
     setTimeout(() => {
         if (document.getElementById('view-scanner').classList.contains('active')) {
-            demarrerScan()
+            demarrerScan();
         }
     }, 2500);
 }
@@ -536,7 +550,7 @@ async function synchroniserDonnees() {
     } catch (e) {
         alert("Erreur de connexion avec le serveur n8n.");
     }
-    }
+}
 
 function filtrerInvites() {
     let query = normaliserTexte(document.getElementById('search-input').value);
@@ -544,7 +558,7 @@ function filtrerInvites() {
     listeDiv.innerHTML = '';
     
     let invitesFiltres = BaseDonneesInvites.filter(g => 
-        normaliserTexte(g.nom_complet || g.nom).includes(query) ||
+        normaliserTexte(extraireNom(g)).includes(query) ||
         normaliserTexte(g.ticket_id).includes(query)
     );
     
@@ -554,12 +568,12 @@ function filtrerInvites() {
     }
     
     invitesFiltres.forEach(guest => {
-        let estPresent = (guest.statut === 'Présent' || guest.scan_status === 'Présent');
+        let estPresent = (guest.statut === 'Présent' || guest.scan_status === 'Présent' || guest.scan === true);
         let badgeClass = estPresent ? 'present' : 'absent';
         let detailHeure = guest.heure ? `Scanné à ${guest.heure}` : 'Non arrivé';
         let displayTable = (guest.table && guest.table !== 'N/A') ? guest.table : 'Non attribuée';
         let tableBadge = `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${displayTable}</div>`;
-        let nomPropre = guest.nom_complet || guest.nom;
+        let nomPropre = extraireNom(guest);
         let ticketCode = guest.ticket_id ? `<span style="font-size:11px; color:#94a3b8;"> (${guest.ticket_id})</span>` : '';
         
         listeDiv.innerHTML += `
@@ -579,7 +593,7 @@ function filtrerInvites() {
 }
 
 function forcerValidation(identifier) {
-    let invite = BaseDonneesInvites.find(g => g.ticket_id === identifier || g.nom_complet === identifier || g.nom === identifier);
+    let invite = BaseDonneesInvites.find(g => g.ticket_id === identifier || extraireNom(g) === identifier);
     if (invite) validerEntree(invite);
 }
 
@@ -603,7 +617,7 @@ async function testerConnexion() {
 
 function MettreAJourAffichage() {
     let total = BaseDonneesInvites.length;
-    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent' || g.scan_status === 'Présent').length;
+    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent' || g.scan_status === 'Présent' || g.scan === true).length;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
     document.getElementById('stat-total').innerText = total;
