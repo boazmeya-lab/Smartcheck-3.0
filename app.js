@@ -12,24 +12,22 @@ function extraireNom(guest) {
     if (!guest) return 'Nom Inconnu';
     return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || 'Invité sans nom';
 }
-
-// VÉRIFICATION STRICTE DE LA PRÉSENCE
+// Ne vérifie STRICTEMENT que le scan à l'entrée, pas le formulaire RSVP
 function verifierPresence(guest) {
     if (!guest) return false;
     
-    // Si c'un boolean explicite
-    if (guest.scan === true || guest.statut === true || guest.presence === true) return true;
+    // On ne regarde QUE la colonne de scan / enregistrement physique
+    if (guest.scan === true) return true;
     
-    // Récupération de n'importe quel champ de statut
-    let val = guest.statut || guest.scan_status || guest.presence || guest.présence || guest.status;
-    
-    if (typeof val === 'string') {
-        let cleanVal = val.trim().toLowerCase();
-        return cleanVal === 'présent' || cleanVal === 'present' || cleanVal === 'oui' || cleanVal === 'true';
+    let scanVal = guest.scan_status || guest.status_scan || guest.scanne;
+    if (typeof scanVal === 'string') {
+        let cleanVal = scanVal.trim().toLowerCase();
+        return cleanVal === 'présent' || cleanVal === 'present' || cleanVal === 'scanné';
     }
     
     return false;
 }
+
 
 function switchView(viewId, element) {
     document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
