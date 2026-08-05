@@ -2,16 +2,21 @@ let html5QrcodeScanner;
 let BaseDonneesInvites = JSON.parse(localStorage.getItem('smartcheck_db')) || [];
 let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
 
-// Attendre que le DOM soit complètement chargé avant d'initialiser
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('webhook-url').value = WebhookUrl;
     MettreAJourAffichage();
 });
 
-// Récupération propre du nom
 function extraireNom(guest) {
     if (!guest) return 'Nom Inconnu';
     return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || 'Invité sans nom';
+}
+
+// Fonction de vérification stricte de la présence
+function verifierPresence(guest) {
+    if (!guest) return false;
+    let s = String(guest.statut || guest.scan_status || guest.presence || guest.présence || '').toLowerCase().trim();
+    return s === 'présent' || s === 'present' || s === 'oui' || guest.scan === true;
 }
 
 function switchView(viewId, element) {
@@ -42,16 +47,13 @@ function onScanSuccess(decodedText) {
     let codeScanne = decodedText.trim();
     html5QrcodeScanner.clear().catch(err => console.log(err));
     
-    // Recherche STRICTE dans la base de données synchronisée de Supabase
     let invite = BaseDonneesInvites.find(g => 
         (g.ticket_id && g.ticket_id.toUpperCase() === codeScanne.toUpperCase()) ||
         normaliserTexte(extraireNom(g)) === normaliserTexte(codeScanne)
     );
     
     if (invite) {
-        let estPresent = (invite.statut === 'Présent' || invite.scan_status === 'Présent' || invite.scan === true || invite.présence === 'Oui');
-        
-        if (estPresent) {
+        if (verifierPresence(invite)) {
             let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
             let displayTable = (invite.tableau || invite.table);
             let tableText = (displayTable && displayTable !== 'N/A' && displayTable !== 'Non attribuée') 
@@ -70,7 +72,6 @@ function onScanSuccess(decodedText) {
             validerEntree(invite);
         }
     } else {
-        // REFUS AUTOMATIQUE SI NON TROUVÉ DANS SUPABASE
         declencherFlash(
             `<div class="flash-title">Accès Refusé ❌</div>
              <div class="flash-name">Ticket Inconnu</div>
@@ -108,7 +109,6 @@ async function validerEntree(invite) {
         'var(--success)'
     );
 
-    // Envoi de la mise à jour à Supabase via n8n
     if (WebhookUrl) {
         try {
             await fetch(WebhookUrl, {
@@ -164,7 +164,6 @@ async function synchroniserDonnees() {
     }
 }
 
-// Fonction d'affichage nettoyée (Affiche UNIQUEMENT le Nom et la Table)
 function filtrerInvites() {
     let query = normaliserTexte(document.getElementById('search-input').value);
     let listeDiv = document.getElementById('liste-invites');
@@ -181,9 +180,9 @@ function filtrerInvites() {
     }
     
     invitesFiltres.forEach(guest => {
-        let estPresent = (guest.statut === 'Présent' || guest.scan_status === 'Présent' || guest.scan === true || guest.présence === 'Oui');
+        let estPresent = verifierPresence(guest);
         let badgeClass = estPresent ? 'present' : 'absent';
-        let detailHeure = guest.heure ? `Scanné à ${guest.heure}` : 'Non arrivé';
+        let detailHeure = (estPresent && guest.heure) ? `Scanné à ${guest.heure}` : 'Non arrivé';
         
         let rawTable = guest.tableau || guest.table;
         let displayTable = (rawTable && rawTable !== 'N/A' && rawTable !== 'Non attribuée') ? rawTable : 'Non attribuée';
@@ -232,7 +231,7 @@ async function testerConnexion() {
 
 function MettreAJourAffichage() {
     let total = BaseDonneesInvites.length;
-    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent' || g.scan_status === 'Présent' || g.scan === true || g.présence === 'Oui').length;
+    let presents = BaseDonneesInvites.filter(g => verifierPresence(g)).length;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
     document.getElementById('stat-total').innerText = total;
