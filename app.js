@@ -3,7 +3,8 @@ let BaseDonneesInvites = JSON.parse(localStorage.getItem('smartcheck_db')) || []
 let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('webhook-url').value = WebhookUrl;
+    let inputUrl = document.getElementById('webhook-url');
+    if (inputUrl) inputUrl.value = WebhookUrl;
     MettreAJourAffichage();
 });
 
@@ -12,11 +13,22 @@ function extraireNom(guest) {
     return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || 'Invité sans nom';
 }
 
-// Fonction de vérification stricte de la présence
+// VÉRIFICATION STRICTE DE LA PRÉSENCE
 function verifierPresence(guest) {
     if (!guest) return false;
-    let s = String(guest.statut || guest.scan_status || guest.presence || guest.présence || '').toLowerCase().trim();
-    return s === 'présent' || s === 'present' || s === 'oui' || guest.scan === true;
+    
+    // Si c'un boolean explicite
+    if (guest.scan === true || guest.statut === true || guest.presence === true) return true;
+    
+    // Récupération de n'importe quel champ de statut
+    let val = guest.statut || guest.scan_status || guest.presence || guest.présence || guest.status;
+    
+    if (typeof val === 'string') {
+        let cleanVal = val.trim().toLowerCase();
+        return cleanVal === 'présent' || cleanVal === 'present' || cleanVal === 'oui' || cleanVal === 'true';
+    }
+    
+    return false;
 }
 
 function switchView(viewId, element) {
@@ -28,7 +40,8 @@ function switchView(viewId, element) {
     }
     if (viewId !== 'scanner' && html5QrcodeScanner) {
         html5QrcodeScanner.clear().catch(err => console.log(err));
-        document.getElementById('start-btn').style.display = 'flex';
+        let btn = document.getElementById('start-btn');
+        if (btn) btn.style.display = 'flex';
     }
 }
 
@@ -123,7 +136,7 @@ async function validerEntree(invite) {
                 })
             });
         } catch (e) {
-            console.error("Erreur de synchronisation Webhook", e);
+            console.error("Erreur Webhook", e);
         }
     }
     relancerScanneurApresDelai();
@@ -157,16 +170,18 @@ async function synchroniserDonnees() {
                 alert("Données Supabase synchronisées avec succès !");
             }
         } else {
-            alert("Erreur lors de la récupération des données.");
+            alert("Erreur de récupération des données.");
         }
     } catch (e) {
-        alert("Erreur de connexion avec le serveur n8n.");
+        alert("Erreur de connexion n8n.");
     }
 }
 
 function filtrerInvites() {
-    let query = normaliserTexte(document.getElementById('search-input').value);
+    let inputSearch = document.getElementById('search-input');
+    let query = inputSearch ? normaliserTexte(inputSearch.value) : '';
     let listeDiv = document.getElementById('liste-invites');
+    if (!listeDiv) return;
     listeDiv.innerHTML = '';
     
     let invitesFiltres = BaseDonneesInvites.filter(g => 
@@ -234,15 +249,20 @@ function MettreAJourAffichage() {
     let presents = BaseDonneesInvites.filter(g => verifierPresence(g)).length;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
-    document.getElementById('stat-total').innerText = total;
-    document.getElementById('stat-present').innerText = presents;
-    document.getElementById('stat-ratio').innerText = ratio + '%';
+    let elTotal = document.getElementById('stat-total');
+    let elPresent = document.getElementById('stat-present');
+    let elRatio = document.getElementById('stat-ratio');
+    
+    if (elTotal) elTotal.innerText = total;
+    if (elPresent) elPresent.innerText = presents;
+    if (elRatio) elRatio.innerText = ratio + '%';
     
     filtrerInvites();
 }
 
 function declencherFlash(message, couleur) {
     let overlay = document.getElementById('scan-overlay');
+    if (!overlay) return;
     overlay.style.backgroundColor = couleur;
     overlay.innerHTML = message;
     overlay.style.display = 'flex';
