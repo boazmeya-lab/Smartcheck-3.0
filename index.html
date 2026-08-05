@@ -117,7 +117,6 @@ h1 span {
     color: var(--primary);
 }
 
-/* Modification de la grille pour afficher 3 cartes de manière équilibrée */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -136,7 +135,6 @@ h1 span {
 
 .stat-box.success { border-left-color: var(--success); }
 
-/* La 3e carte occupe la largeur complète */
 .stat-box.full-width {
     grid-column: span 2;
 }
@@ -258,7 +256,7 @@ button.btn-secondary {
 }
 
 .flash-title {
-    font-size: 24px;
+    font-size: 22px;
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 5px;
@@ -266,7 +264,7 @@ button.btn-secondary {
 }
 
 .flash-name {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 800;
     background: rgba(255, 255, 255, 0.15);
     padding: 12px 25px;
@@ -278,7 +276,7 @@ button.btn-secondary {
 }
 
 .flash-table {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 800;
     background: #ffffff;
     color: #1e293b;
@@ -289,6 +287,12 @@ button.btn-secondary {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.flash-extra {
+    font-size: 16px;
+    margin-top: 10px;
+    opacity: 0.9;
 }
 </style>
 </head>
@@ -335,7 +339,7 @@ button.btn-secondary {
 <div id="view-guests" class="app-view">
     <div class="card">
         <div style="display:flex; gap:10px; margin-bottom: 15px;">
-            <input type="text" id="search-input" class="search-box" placeholder="Rechercher un invité..." oninput="filtrerInvites()">
+            <input type="text" id="search-input" class="search-box" placeholder="Chercher un ticket ou un nom..." oninput="filtrerInvites()">
             <button class="btn-secondary" onclick="synchroniserDonnees()"><i class="fa-solid fa-sync"></i></button>
         </div>
         <div id="liste-invites" class="guest-list"></div>
@@ -346,7 +350,7 @@ button.btn-secondary {
 <div id="view-settings" class="app-view">
     <div class="card">
         <h3><i class="fa-solid fa-gear"></i> Configuration webhook n8n</h3>
-        <p style="font-size:13px; color:#7f8c8d;">Entrez l'URL de votre Webhook n8n connecté à Google Sheets.</p>
+        <p style="font-size:13px; color:#7f8c8d;">Entrez l'URL de votre Webhook n8n connecté à Supabase.</p>
         <input type="url" id="webhook-url" class="input-field" placeholder="https://..." style="margin-bottom: 15px;">
         
         <button class="btn-main" onclick="sauvegarderParametres()" style="margin-bottom:10px;">
@@ -399,41 +403,33 @@ function demarrerScan() {
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
 
-function extraireNomDepuisTexte(texte) {
-    if (!texte) return '';
-    texte = texte.trim();
-    if (texte.startsWith('http://') || texte.startsWith('https://')) {
-        try {
-            let url = new URL(texte);
-            let nom = url.searchParams.get('name') || url.searchParams.get('nom');
-            if (nom) return decodeURIComponent(nom).trim();
-        } catch (e) {
-            console.error(e);
-        }
-    }
-    return texte;
-}
-
 function normaliserTexte(str) {
+    if(!str) return '';
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 function onScanSuccess(decodedText) {
-    let nomScanne = extraireNomDepuisTexte(decodedText);
+    let codeScanne = decodedText.trim();
     html5QrcodeScanner.clear().catch(err => console.log(err));
     
-    let invite = BaseDonneesInvites.find(g => normaliserTexte(extraireNomDepuisTexte(g.nom)) === normaliserTexte(nomScanne));
+    // Recherche prioritaire par Ticket ID (Ex: TICK-123456) puis par Nom
+    let invite = BaseDonneesInvites.find(g => 
+        (g.ticket_id && g.ticket_id.toUpperCase() === codeScanne.toUpperCase()) ||
+        normaliserTexte(g.nom_complet || g.nom) === normaliserTexte(codeScanne)
+    );
     
     if (invite) {
-        if (invite.statut === 'Présent') {
+        if (invite.statut === 'Présent' || invite.scan_status === 'Présent') {
             let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
-            let tableText = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : '';
+            let tableText = (invite.table && invite.table !== 'N/A') 
+                ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
+                : `<div class="flash-table">📍 Non attribuée</div>`;
             
             declencherFlash(
                 `<div class="flash-title">Déjà Scanné ! ⚠️</div>
-                 <div class="flash-name">${extraireNomDepuisTexte(invite.nom)}</div>
+                 <div class="flash-name">${invite.nom_complet || invite.nom}</div>
                  ${tableText}
-                 <span style="font-size:16px; margin-top:15px; display:block; opacity:0.8;">${detailHeure}</span>`, 
+                 <span class="flash-extra">${detailHeure}</span>`, 
                 'var(--danger)'
             );
             relancerScanneurApresDelai();
@@ -441,7 +437,13 @@ function onScanSuccess(decodedText) {
             validerEntree(invite);
         }
     } else {
-        let nouvelInvite = { nom: nomScanne, statut: 'Absent', heure: '', table: 'Aucune table' };
+        // Ticket inconnu dans la base locale
+        let nouvelInvite = { 
+            ticket_id: codeScanne.startsWith('TICK-') ? codeScanne : 'INCONNU', 
+            nom_complet: codeScanne, 
+            statut: 'Absent', 
+            table: 'Non attribuée' 
+        };
         validerEntree(nouvelInvite, true);
     }
 }
@@ -453,6 +455,7 @@ async function validerEntree(invite, estNouveau = false) {
     let heureActuelle = maintenant.getHours().toString().padStart(2, '0') + ':' + maintenant.getMinutes().toString().padStart(2, '0');
     
     invite.statut = 'Présent';
+    invite.scan_status = 'Présent';
     invite.heure = heureActuelle;
 
     if (estNouveau) {
@@ -462,25 +465,39 @@ async function validerEntree(invite, estNouveau = false) {
     sauvegarderLocalement();
     MettreAJourAffichage();
     
-    let nomPropre = extraireNomDepuisTexte(invite.nom);
-    let tableHtml = invite.table ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` : `<div class="flash-table">📍 Pas de table assignée</div>`;
+    let nomPropre = invite.nom_complet || invite.nom;
+    let tableHtml = (invite.table && invite.table !== 'N/A') 
+        ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
+        : `<div class="flash-table">📍 Table Non attribuée</div>`;
     
+    let accompagnantText = (invite.avec_accompagnant === 'oui' && invite.nom_accompagnant) 
+        ? `<div class="flash-extra">👥 Accompagnant : <b>${invite.nom_accompagnant}</b></div>` 
+        : '';
+
     declencherFlash(
         `<div class="flash-title">Accès Autorisé ✅</div>
          <div class="flash-name">${nomPropre}</div>
-         ${tableHtml}`, 
+         ${tableHtml}
+         ${accompagnantText}`, 
         'var(--success)'
     );
 
+    // Synchronisation avec n8n pour mise à jour Supabase
     if (WebhookUrl) {
         try {
             await fetch(WebhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'checkin', nom: nomPropre, heure: heureActuelle })
+                body: JSON.stringify({ 
+                    action: 'checkin', 
+                    ticket_id: invite.ticket_id, 
+                    nom_complet: nomPropre, 
+                    heure: heureActuelle,
+                    table: invite.table 
+                })
             });
         } catch (e) {
-            console.error("Erreur synchro", e);
+            console.error("Erreur de synchronisation Webhook", e);
         }
     }
     relancerScanneurApresDelai();
@@ -496,7 +513,7 @@ function relancerScanneurApresDelai() {
 
 async function synchroniserDonnees() {
     if (!WebhookUrl) {
-        alert("Configurez le Webhook.");
+        alert("Veuillez configurer l'URL du Webhook.");
         return;
     }
     try {
@@ -507,13 +524,13 @@ async function synchroniserDonnees() {
                 BaseDonneesInvites = donnees;
                 sauvegarderLocalement();
                 MettreAJourAffichage();
-                alert("Synchronisé !");
+                alert("Données Supabase synchronisées avec succès !");
             }
         } else {
-            alert("Erreur de récupération.");
+            alert("Erreur lors de la récupération des données.");
         }
     } catch (e) {
-        alert("Erreur serveur n8n.");
+        alert("Erreur de connexion avec le serveur n8n.");
     }
 }
 
@@ -522,44 +539,50 @@ function filtrerInvites() {
     let listeDiv = document.getElementById('liste-invites');
     listeDiv.innerHTML = '';
     
-    let invitesFiltres = BaseDonneesInvites.filter(g => normaliserTexte(extraireNomDepuisTexte(g.nom)).includes(query));
+    let invitesFiltres = BaseDonneesInvites.filter(g => 
+        normaliserTexte(g.nom_complet || g.nom).includes(query) ||
+        normaliserTexte(g.ticket_id).includes(query)
+    );
     
     if(invitesFiltres.length === 0) {
-        listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité.</p>';
+        listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité trouvé.</p>';
         return;
     }
     
     invitesFiltres.forEach(guest => {
-        let badgeClass = guest.statut === 'Présent' ? 'present' : 'absent';
+        let estPresent = (guest.statut === 'Présent' || guest.scan_status === 'Présent');
+        let badgeClass = estPresent ? 'present' : 'absent';
         let detailHeure = guest.heure ? `Scanné à ${guest.heure}` : 'Non arrivé';
-        let tableBadge = guest.table ? `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${guest.table}</div>` : '';
-        let nomPropre = extraireNomDepuisTexte(guest.nom);
+        let displayTable = (guest.table && guest.table !== 'N/A') ? guest.table : 'Non attribuée';
+        let tableBadge = `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${displayTable}</div>`;
+        let nomPropre = guest.nom_complet || guest.nom;
+        let ticketCode = guest.ticket_id ? `<span style="font-size:11px; color:#94a3b8;"> (${guest.ticket_id})</span>` : '';
         
         listeDiv.innerHTML += `
             <div class="guest-item">
                 <div class="guest-info">
-                    <strong>${nomPropre}</strong>
+                    <strong>${nomPropre}${ticketCode}</strong>
                     <span class="guest-time">${detailHeure}</span>
                     ${tableBadge}
                 </div>
                 <div>
-                    <span class="badge ${badgeClass}">${guest.statut}</span>
-                    ${guest.statut === 'Absent' ? `<button onclick="forcerValidation('${guest.nom}')" style="margin-left:8px; font-size:11px; padding:4px 6px; border-radius:5px; border:none; background:var(--primary); color:white; cursor:pointer;"><i class="fa-solid fa-check"></i></button>` : ''}
+                    <span class="badge ${badgeClass}">${estPresent ? 'Présent' : 'Absent'}</span>
+                    ${!estPresent ? `<button onclick="forcerValidation('${guest.ticket_id || nomPropre}')" style="margin-left:8px; font-size:11px; padding:4px 6px; border-radius:5px; border:none; background:var(--primary); color:white; cursor:pointer;"><i class="fa-solid fa-check"></i></button>` : ''}
                 </div>
             </div>
         `;
     });
 }
 
-function forcerValidation(nom) {
-    let invite = BaseDonneesInvites.find(g => g.nom === nom);
+function forcerValidation(identifier) {
+    let invite = BaseDonneesInvites.find(g => g.ticket_id === identifier || g.nom_complet === identifier || g.nom === identifier);
     if (invite) validerEntree(invite);
 }
 
 function sauvegarderParametres() {
     WebhookUrl = document.getElementById('webhook-url').value.trim();
     localStorage.setItem('smartcheck_webhook', WebhookUrl);
-    alert("Enregistré !");
+    alert("Configuration enregistrée !");
 }
 
 async function testerConnexion() {
@@ -567,16 +590,16 @@ async function testerConnexion() {
     if(!url) return alert("Entrez une URL.");
     try {
         let res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action:'ping'}) });
-        if(res.ok) alert("Connecté à n8n ! 🚀");
-        else alert("Réponse avec erreur.");
+        if(res.ok) alert("Connecté à n8n avec succès ! 🚀");
+        else alert("Réponse du serveur avec une erreur.");
     } catch(e) {
-        alert("Échec connexion.");
+        alert("Échec de la connexion.");
     }
 }
 
 function MettreAJourAffichage() {
     let total = BaseDonneesInvites.length;
-    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent').length;
+    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent' || g.scan_status === 'Présent').length;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
     document.getElementById('stat-total').innerText = total;
@@ -601,7 +624,7 @@ function sauvegarderLocalement() {
 }
 
 function reinitialiserLocale() {
-    if (confirm("Vider le cache ?")) {
+    if (confirm("Voulez-vous vider le cache local ?")) {
         BaseDonneesInvites = [];
         sauvegarderLocalement();
         MettreAJourAffichage();
