@@ -1,25 +1,36 @@
+/* ==========================================================================
+   1. ÉTAT ET CONFIGURATION GLOBALE
+   ========================================================================== */
 let supabaseClient = null;
 let html5QrcodeScanner = null;
 let guests = [];
 
-// Initialisation au chargement
+// Configuration Supabase par défaut (Remplacer si nécessaire)
+const DEFAULT_SUPABASE_URL = "https://xyz.supabase.co"; 
+const DEFAULT_SUPABASE_KEY = "eyJhbGci..."; 
+
+/* ==========================================================================
+   2. INITIALISATION ET NAVIGATION
+   ========================================================================== */
 document.addEventListener('DOMContentLoaded', () => {
   loadConfigInputs();
   initSupabase();
 });
 
-// Navigation entre onglets (Correction du blocage)
+/**
+  Changement d'onglet et gestion du scanner caméra
+ */
 function switchTab(tabName) {
   // Masquer toutes les sections
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   
-  // Réinitialiser la couleur des boutons de navigation
+  // Réinitialiser la couleur des icônes de la barre de navigation
   document.querySelectorAll('.nav-btn').forEach(el => {
     el.classList.remove('text-[#F59E0B]');
     el.classList.add('text-slate-400');
   });
 
-  // Afficher l'onglet sélectionné
+  // Afficher l'onglet actif et allumer son icône
   const targetTab = document.getElementById(`tab-${tabName}`);
   const targetNav = document.getElementById(`nav-${tabName}`);
 
@@ -29,7 +40,7 @@ function switchTab(tabName) {
     targetNav.classList.add('text-[#F59E0B]');
   }
 
-  // Activer ou désactiver le scanner selon l'onglet
+  // Démarrer la caméra uniquement dans l'onglet Scanner
   if (tabName === 'scanner') {
     startScanner();
   } else {
@@ -37,37 +48,16 @@ function switchTab(tabName) {
   }
 }
 
-// Chargement des identifiants
-function loadConfigInputs() {
-  const supaUrl = localStorage.getItem('supa_url') || '';
-  const supaKey = localStorage.getItem('supa_key') || '';
-  const n8nUrl = localStorage.getItem('n8n_url') || '';
-
-  if (document.getElementById('cfg-supa-url')) document.getElementById('cfg-supa-url').value = supaUrl;
-  if (document.getElementById('cfg-supa-key')) document.getElementById('cfg-supa-key').value = supaKey;
-  if (document.getElementById('cfg-n8n-url')) document.getElementById('cfg-n8n-url').value = n8nUrl;
-}
-
-function saveConfig() {
-  const url = document.getElementById('cfg-supa-url').value.trim();
-  const key = document.getElementById('cfg-supa-key').value.trim();
-  const n8n = document.getElementById('cfg-n8n-url').value.trim();
-
-  localStorage.setItem('supa_url', url);
-  localStorage.setItem('supa_key', key);
-  localStorage.setItem('n8n_url', n8n);
-
-  alert('Configuration enregistrée !');
-  initSupabase();
-}
-
+/* ==========================================================================
+   3. INTEGRATION SUPABASE (DONNÉES ET TEMPS RÉEL)
+   ========================================================================== */
 function initSupabase() {
-  const url = localStorage.getItem('supa_url');
-  const key = localStorage.getItem('supa_key');
+  const supaUrl = localStorage.getItem('supa_url') || DEFAULT_SUPABASE_URL;
+  const supaKey = localStorage.getItem('supa_key') || DEFAULT_SUPABASE_KEY;
 
-  if (url && key) {
+  if (supaUrl && supaKey) {
     try {
-      supabaseClient = supabase.createClient(url, key);
+      supabaseClient = supabase.createClient(supaUrl, supaKey);
       fetchGuests();
       listenToSupabaseRealtime();
     } catch (e) {
@@ -76,18 +66,30 @@ function initSupabase() {
   }
 }
 
+/**
+  Récupération initiale des invités
+ */
 async function fetchGuests() {
   if (!supabaseClient) return;
-  const { data, error } = await supabaseClient.from('invites').select('*').order('nom');
+  
+  const { data, error } = await supabaseClient
+    .from('invites')
+    .select('*')
+    .order('nom', { ascending: true });
+
   if (!error && data) {
     guests = data;
-    renderGuests();
-    updateDashboard();
+    filterGuests(); // Met à jour la liste affichée
+    updateDashboard(); // Met à jour le tableau de bord
   }
 }
 
+/**
+  Écouteur Realtime Supabase (Met à jour automatiquement sur tous les téléphones)
+ */
 function listenToSupabaseRealtime() {
   if (!supabaseClient) return;
+
   supabaseClient
     .channel('public:invites')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'invites' }, () => {
@@ -96,68 +98,147 @@ function listenToSupabaseRealtime() {
     .subscribe();
 }
 
+/* ==========================================================================
+   4. RENDU DE L'INTERFACE ET FILTRAGE
+   ========================================================================== */
+/**
+  Mise à jour des statistiques du Tableau de bord
+ */
 function updateDashboard() {
   const total = guests.length;
   const presents = guests.filter(g => g.present).length;
   const absents = total - presents;
   const taux = total > 0 ? Math.round((presents / total) * 100) : 0;
 
-  document.getElementById('stat-total').innerText = total;
-  document.getElementById('stat-presents').innerText = presents;
-  document.getElementById('stat-absents').innerText = absents;
-  document.getElementById('stat-taux').innerText = `${taux}%`;
+  const elTotal = document.getElementById('stat-total');
+  const elPresents = document.getElementById('stat-presents');
+  const elAbsents = document.getElementById('stat-absents');
+  const elTaux = document.getElementById('stat-taux');
+
+  if (elTotal) elTotal.innerText = total;
+  if (elPresents) elPresents.innerText = presents;
+  if (elAbsents) elAbsents.innerText = absents;
+  if (elTaux) elTaux.innerText = `${taux}%`;
 }
 
-function renderGuests() {
+/**
+  Affichage des invités (Conforme au design exact de la maquette)
+ */
+function renderGuests(listToRender) {
   const listEl = document.getElementById('guests-list');
   if (!listEl) return;
 
-  if (guests.length === 0) {
+  if (listToRender.length === 0) {
     listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Aucun invité trouvé.</p>';
     return;
   }
 
-  listEl.innerHTML = guests.map(g => `
-    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+  listEl.innerHTML = listToRender.map(g => `
+    <div class="py-3 flex items-center justify-between border-b border-slate-100 last:border-none">
       <div>
-        <p class="font-bold text-slate-800 text-xs">${g.nom}</p>
-        <p class="text-[10px] text-slate-400">${g.scanned_at ? new Date(g.scanned_at).toLocaleTimeString() : 'Pas encore scanné'}</p>
+        <p class="font-bold text-slate-800 text-sm mb-0.5">${escapeHtml(g.nom)}</p>
+        <div class="flex items-center gap-2 text-[11px]">
+          <span class="text-slate-400 font-medium">
+            ${g.present ? (g.scanned_at ? new Date(g.scanned_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Présent') : 'Non arrivé'}
+          </span>
+          <span class="bg-amber-50 text-[#D97706] border border-amber-100/80 px-2 py-0.5 rounded-md font-bold text-[10px] flex items-center gap-1">
+            <span>🪑</span> Non attribuée
+          </span>
+        </div>
       </div>
-      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${g.present ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
-        ${g.present ? 'Présent' : 'Absent'}
-      </span>
+      <div>
+        <span class="px-3 py-1 rounded-lg text-xs font-bold ${g.present ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-rose-50 text-rose-600'}">
+          ${g.present ? 'Présent' : 'Absent'}
+        </span>
+      </div>
     </div>
   `).join('');
 }
 
+/**
+  Filtrage en temps réel via la barre de recherche "Chercher un ticket ou un nom..."
+ */
+function filterGuests() {
+  const searchInput = document.getElementById('guest-search');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const filtered = guests.filter(g => g.nom.toLowerCase().includes(query));
+  renderGuests(filtered);
+}
+
+/* ==========================================================================
+   5. SCANNER QR CODE (CAMÉRA ET GALERIE TÉLÉPHONE)
+   ========================================================================== */
 function startScanner() {
   if (html5QrcodeScanner) return;
+
   html5QrcodeScanner = new Html5Qrcode("reader");
   html5QrcodeScanner.start(
     { facingMode: "environment" },
     { fps: 10, qrbox: { width: 220, height: 220 } },
     onScanSuccess
-  ).catch(err => console.error("Erreur caméra:", err));
+  ).catch(err => console.error("Erreur d'accès caméra:", err));
 }
 
 function stopScanner() {
   if (html5QrcodeScanner) {
     html5QrcodeScanner.stop().then(() => {
       html5QrcodeScanner = null;
-    }).catch(() => html5QrcodeScanner = null);
+    }).catch(() => {
+      html5QrcodeScanner = null;
+    });
   }
 }
 
+/**
+  Importation d'une image QR Code depuis la galerie du téléphone
+ */
+async function scanImageFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const resEl = document.getElementById('file-scan-result');
+  if (resEl) {
+    resEl.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-rose-100', 'text-rose-800');
+    resEl.classList.add('bg-amber-50', 'text-amber-800');
+    resEl.innerText = "Analyse de l'image en cours...";
+  }
+
+  const html5QrCode = new Html5Qrcode("reader");
+  try {
+    const decodedText = await html5QrCode.scanFile(file, true);
+    if (resEl) {
+      resEl.classList.remove('bg-amber-50', 'text-amber-800');
+      resEl.classList.add('bg-emerald-100', 'text-emerald-800');
+      resEl.innerText = `QR Code détecté : ${decodedText}`;
+    }
+    onScanSuccess(decodedText);
+  } catch (err) {
+    if (resEl) {
+      resEl.classList.remove('bg-amber-50', 'text-amber-800');
+      resEl.classList.add('bg-rose-100', 'text-rose-800');
+      resEl.innerText = "Aucun QR Code valide détecté sur cette image.";
+    }
+  }
+}
+
+/**
+  Logique d'accès lors de la détection du QR Code
+ */
 async function onScanSuccess(decodedText) {
   const resEl = document.getElementById('scan-result');
-  resEl.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-rose-100', 'text-rose-800');
+  if (resEl) {
+    resEl.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-rose-100', 'text-rose-800');
+  }
 
   if (!supabaseClient) {
-    resEl.classList.add('bg-rose-100', 'text-rose-800');
-    resEl.innerText = "Supabase non configuré.";
+    if (resEl) {
+      resEl.classList.add('bg-rose-100', 'text-rose-800');
+      resEl.innerText = "Erreur: Supabase non connecté.";
+    }
     return;
   }
 
+  // Recherche de l'invité par ID ou Nom dans Supabase
   const { data: guest, error } = await supabaseClient
     .from('invites')
     .select('*')
@@ -165,22 +246,31 @@ async function onScanSuccess(decodedText) {
     .single();
 
   if (error || !guest) {
-    resEl.classList.add('bg-rose-100', 'text-rose-800');
-    resEl.innerText = "Invité non trouvé !";
+    if (resEl) {
+      resEl.classList.add('bg-rose-100', 'text-rose-800');
+      resEl.innerText = "Invité introuvable !";
+    }
     return;
   }
 
+  // Marquer l'invité comme PRÉSENT
   await supabaseClient
     .from('invites')
     .update({ present: true, scanned_at: new Date().toISOString() })
     .eq('id', guest.id);
 
-  resEl.classList.add('bg-emerald-100', 'text-emerald-800');
-  resEl.innerText = `Accès Autorisé : ${guest.nom}`;
+  if (resEl) {
+    resEl.classList.add('bg-emerald-100', 'text-emerald-800');
+    resEl.innerText = `Accès Autorisé : ${guest.nom}`;
+  }
 
+  // Envoi de la notification vers n8n
   triggerN8nWebhook(guest);
 }
 
+/* ==========================================================================
+   6. GESTION N8N ET UTILITAIRES
+   ========================================================================== */
 async function triggerN8nWebhook(guest) {
   const n8nUrl = localStorage.getItem('n8n_url');
   if (!n8nUrl) return;
@@ -200,42 +290,59 @@ async function triggerN8nWebhook(guest) {
   }
 }
 
+function loadConfigInputs() {
+  const n8nUrl = localStorage.getItem('n8n_url') || '';
+  const inputN8n = document.getElementById('cfg-n8n-url');
+  if (inputN8n) inputN8n.value = n8nUrl;
+}
+
+function saveConfig() {
+  const inputN8n = document.getElementById('cfg-n8n-url');
+  if (inputN8n) {
+    localStorage.setItem('n8n_url', inputN8n.value.trim());
+    alert('Configuration n8n enregistrée !');
+  }
+}
+
 async function testConnection() {
-  const supaUrl = localStorage.getItem('supa_url');
   const n8nUrl = localStorage.getItem('n8n_url');
 
-  if (!supaUrl) {
-    alert("Configurez d'abord Supabase.");
+  if (!n8nUrl) {
+    alert("Veuillez saisir l'URL du Webhook n8n.");
     return;
   }
 
   try {
-    const { data, error } = await supabaseClient.from('invites').select('count', { count: 'exact' });
-    if (error) throw error;
+    const res = await fetch(n8nUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: true, timestamp: new Date().toISOString() })
+    });
 
-    let n8nMsg = "Non configuré";
-    if (n8nUrl) {
-      const res = await fetch(n8nUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: true })
-      });
-      n8nMsg = res.ok ? "OK (200)" : `Erreur ${res.status}`;
+    if (res.ok) {
+      alert("Connexion n8n réussie (HTTP 200 OK) !");
+    } else {
+      alert(`Erreur n8n: Code HTTP ${res.status}`);
     }
-
-    alert(`Connexion réussie !\n• Supabase: Actif\n• n8n: ${n8nMsg}`);
   } catch (err) {
-    alert(`Erreur de connexion: ${err.message}`);
+    alert(`Échec du test de connexion n8n: ${err.message}`);
   }
 }
 
 function resetApp() {
-  if (confirm("Réinitialiser les paramètres locaux ?")) {
+  if (confirm("Réinitialiser l'application et effacer les configurations locales ?")) {
     localStorage.clear();
     loadConfigInputs();
-    guests = [];
-    renderGuests();
-    updateDashboard();
-    alert("Application réinitialisée.");
+    alert("Application réinitialisée !");
   }
+}
+
+// Fonction de sécurisation contre l'injection de texte HTML
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
