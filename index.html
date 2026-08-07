@@ -321,7 +321,7 @@ button.btn-secondary {
                 <div class="stat-label">Taux d'accès</div>
             </div>
         </div>
-        <button class="btn-main" onclick="switchView('scanner')">
+        <button class="btn-main" onclick="switchView('scanner', document.querySelectorAll('.nav-item')[1])">
             <i class="fa-solid fa-qrcode"></i> Lancer un Scan
         </button>
     </div>
@@ -366,18 +366,26 @@ button.btn-secondary {
     </div>
 </div>
 
-<!-- NAV BAR -->
+<!-- OVERLAY FLASH SCAN -->
+<div id="scan-overlay"></div>
+
+<!-- BARRE DE NAVIGATION -->
 <div class="nav-bar">
-    <        : `<div class="flash-table">📍 Table Non attribuée</div>`;
-    
-    let accompagnantText = (invite.avec_accompagnant === 'oui' && invite.nom_accompagnant) 
-        ? `<div class="flash-extra">👥 Accompagnant : <b>${invite.nom_accompagnant}</b></div>` 
-        : '';
+    <button class="nav-item active" onclick="switchView('home', this)">
+        <i class="fa-solid fa-house"></i> Accueil
+    </button>
+    <button class="nav-item" onclick="switchView('scanner', this)">
+        <i class="fa-solid fa-qrcode"></i> Scanner
+    </button>
+    <button class="nav-item" onclick="switchView('guests', this)">
+        <i class="fa-solid fa-users"></i> Invités
+    </button>
+    <button class="nav-item" onclick="switchView('settings', this)">
+        <i class="fa-solid fa-gear"></i> Paramètres
+    </button>
+</div>
 
-    declencherFlash(
-        `<div class="flash-title">Accès Autorisé ✅</div>
-         <div class="flash-name">${nomPropre}</div>
-
-</script>
+<!-- LIEN VERS LE FICHIER JAVASCRIPT EXTERNE -->
+<script src="app.js"></script>
 </body>
 </html>
