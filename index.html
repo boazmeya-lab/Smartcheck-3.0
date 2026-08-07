@@ -3,88 +3,151 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartCheck</title>
+  <title>SmartCheck - Scanner</title>
+  <!-- Tailwind CSS pour les styles -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SDK Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Librairie Scanner QR Code -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- FontAwesome pour les icônes -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-[#faf8f5] font-sans min-h-screen flex flex-col justify-between max-w-md mx-auto relative">
+<body class="bg-amber-50/30 text-slate-800 pb-20 font-sans min-h-screen">
 
-  <!-- En-tête / Header -->
-  <header class="pt-8 pb-4 text-center">
-    <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">BY SMARTECH</p>
-    <h1 class="text-3xl font-extrabold text-[#1d2b3a]">
-      Smart<span class="text-[#f29913]">Check</span>
-    </h1>
+  <!-- En-tête -->
+  <header class="text-center pt-6 pb-4">
+    <p class="text-xs font-bold text-slate-400 tracking-widest uppercase">BY SMARTECH</p>
+    <h1 class="text-2xl font-black text-slate-800">Smart<span class="text-amber-500">Check</span></h1>
   </header>
 
-  <!-- Carte Principale Tableau de Bord -->
-  <main class="px-5 flex-1">
-    <div class="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100">
-      
-      <!-- Titre avec Icône -->
-      <div class="flex items-center gap-2.5 mb-6 text-[#1d2b3a]">
-        <i class="fa-solid fa-chart-pie text-xl"></i>
-        <h2 class="text-xl font-bold">Tableau de bord</h2>
+  <main class="max-w-md mx-auto px-4">
+
+    <!-- ONGLET 1: TABLEAU DE BORD -->
+    <section id="tab-accueil" class="space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-slate-700"></i> Tableau de bord
+        </h2>
+
+        <!-- Statistiques principales -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="border-l-4 border-amber-500 bg-amber-50/20 p-3 rounded-r-xl">
+            <span id="stat-total" class="block text-2xl font-extrabold text-slate-800">0</span>
+            <span class="text-xs text-slate-500 font-medium">Total Invités</span>
+          </div>
+          <div class="border-l-4 border-emerald-500 bg-emerald-50/20 p-3 rounded-r-xl">
+            <span id="stat-presents" class="block text-2xl font-extrabold text-slate-800">0</span>
+            <span class="text-xs text-slate-500 font-medium">Présents</span>
+          </div>
+        </div>
+
+        <div class="border-l-4 border-amber-500 bg-amber-50/20 p-4 rounded-r-xl text-center mb-3">
+          <span id="stat-taux" class="block text-3xl font-extrabold text-slate-800">0%</span>
+          <span class="text-xs text-slate-500 font-medium">Taux d'accès</span>
+        </div>
+
+        <!-- Bloc des Absents (placé tout en bas du tableau de bord) -->
+        <div class="border-l-4 border-rose-500 bg-rose-50/20 p-3 rounded-r-xl">
+          <div class="flex justify-between items-center">
+            <div>
+              <span id="stat-absents" class="block text-2xl font-extrabold text-slate-800">0</span>
+              <span class="text-xs text-slate-500 font-medium">Absents</span>
+            </div>
+            <i class="fa-solid fa-user-xmark text-rose-400 text-xl"></i>
+          </div>
+        </div>
+
+        <button onclick="switchTab('scanner')" class="w-full mt-5 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition">
+          <i class="fa-solid fa-qrcode"></i> Lancer un Scan
+        </button>
       </div>
+    </section>
 
-      <!-- Grille 2x2 des 4 cartes -->
-      <div class="grid grid-cols-2 gap-3 mb-6">
-        
-        <!-- Total Invités -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 border-l-4 border-l-[#f29913] text-center shadow-sm">
-          <span id="total-invites" class="block text-2xl font-bold text-[#1d2b3a]">3</span>
-          <span class="text-xs text-slate-400 font-medium">Total Invités</span>
-        </div>
-
-        <!-- Présents -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 border-l-4 border-l-[#27ae60] text-center shadow-sm">
-          <span id="presents" class="block text-2xl font-bold text-[#1d2b3a]">0</span>
-          <span class="text-xs text-slate-400 font-medium">Présents</span>
-        </div>
-
-        <!-- Absents (Nouvelle case) -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 border-l-4 border-l-[#eb5757] text-center shadow-sm">
-          <span id="absents" class="block text-2xl font-bold text-[#1d2b3a]">3</span>
-          <span class="text-xs text-slate-400 font-medium">Absents</span>
-        </div>
-
-        <!-- Taux d'accès -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 border-l-4 border-l-[#f29913] text-center shadow-sm">
-          <span id="taux-acces" class="block text-2xl font-bold text-[#1d2b3a]">0%</span>
-          <span class="text-xs text-slate-400 font-medium">Taux d'accès</span>
-        </div>
-
+    <!-- ONGLET 2: SCANNER -->
+    <section id="tab-scanner" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center">
+        <h2 class="text-lg font-bold text-slate-800 mb-3">Scanner le QR Code</h2>
+        <div id="reader" class="overflow-hidden rounded-xl bg-slate-100"></div>
+        <div id="scan-result" class="mt-4 p-3 rounded-xl text-sm font-medium hidden"></div>
       </div>
+    </section>
 
-      <!-- Bouton Lancer un Scan -->
-      <button id="btn-scan" class="w-full bg-[#f29913] active:bg-[#d8840b] text-white font-bold py-3.5 px-4 rounded-2xl shadow-sm flex items-center justify-center gap-2 text-base transition">
-        <i class="fa-solid fa-qrcode text-lg"></i>
-        <span>Lancer un Scan</span>
-      </button>
+    <!-- ONGLET 3: LISTE DES INVITÉS -->
+    <section id="tab-invites" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-slate-800">Liste des Invités</h2>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Supabase Live
+          </span>
+        </div>
 
-    </div>
+        <!-- Conteneur d'affichage dynamique des invités -->
+        <div id="guests-list" class="space-y-2">
+          <p class="text-center text-sm text-slate-400 py-4">Chargement des invités...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET 4: PARAMÈTRES ET CONFIGURATION -->
+    <section id="tab-parametres" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+        <h2 class="text-lg font-bold text-slate-800">Paramètres & Intégrations</h2>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1 uppercase">Supabase URL</label>
+          <input type="text" id="cfg-supa-url" placeholder="https://xyz.supabase.co" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1 uppercase">Supabase Anon Key</label>
+          <input type="password" id="cfg-supa-key" placeholder="eyJhbGci..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+        </div>
+
+        <!-- Emplacement de liaison n8n & SmartCheck -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1 uppercase">Lien Webhook n8n (SmartCheck)</label>
+          <input type="text" id="cfg-n8n-url" placeholder="https://n8n.instance.com/webhook/..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+        </div>
+
+        <button onclick="saveConfig()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-slate-900 transition">
+          Enregistrer la configuration
+        </button>
+
+        <hr class="border-slate-100 my-2">
+
+        <!-- Bouton pour tester la connexion -->
+        <button onclick="testConnection()" class="w-full border border-amber-500 text-amber-600 font-bold py-2.5 rounded-xl text-sm hover:bg-amber-50 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plug"></i> Tester la connexion n8n / Supabase
+        </button>
+
+        <!-- Bouton de réinitialisation -->
+        <button onclick="resetApp()" class="w-full border border-rose-200 text-rose-600 font-bold py-2.5 rounded-xl text-sm hover:bg-rose-50 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> Réinitialiser l'application
+        </button>
+      </div>
+    </section>
+
   </main>
 
-  <!-- Navigation Bas de Page -->
-  <nav class="bg-white border-t border-slate-100 py-3 px-6 flex justify-between items-center mt-6">
-    <a href="#" class="flex flex-col items-center text-[#f29913]">
-      <i class="fa-solid fa-house text-lg"></i>
-      <span class="text-[10px] font-semibold mt-1">Accueil</span>
-    </a>
-    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
-      <i class="fa-solid fa-qrcode text-lg"></i>
-      <span class="text-[10px] font-semibold mt-1">Scanner</span>
-    </a>
-    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
-      <i class="fa-solid fa-users text-lg"></i>
-      <span class="text-[10px] font-semibold mt-1">Invités</span>
-    </a>
-    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
-      <i class="fa-solid fa-gear text-lg"></i>
-      <span class="text-[10px] font-semibold mt-1">Paramètres</span>
-    </a>
+  <!-- Navigation fixe en bas -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 py-2 flex justify-around items-center max-w-md mx-auto z-50">
+    <button onclick="switchTab('accueil')" id="nav-accueil" class="nav-btn text-amber-500 flex flex-col items-center gap-1 text-xs font-bold">
+      <i class="fa-solid fa-house text-lg"></i> Accueil
+    </button>
+    <button onclick="switchTab('scanner')" id="nav-scanner" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-xs font-bold">
+      <i class="fa-solid fa-qrcode text-lg"></i> Scanner
+    </button>
+    <button onclick="switchTab('invites')" id="nav-invites" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-xs font-bold">
+      <i class="fa-solid fa-users text-lg"></i> Invités
+    </button>
+    <button onclick="switchTab('parametres')" id="nav-parametres" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-xs font-bold">
+      <i class="fa-solid fa-gear text-lg"></i> Paramètres
+    </button>
   </nav>
 
+  <!-- Chargement de la logique Javascript -->
   <script src="app.js"></script>
 </body>
 </html>
