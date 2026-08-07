@@ -3,148 +3,142 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartCheck</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>SmartCheck 3.0 - Vérification d'Accès</title>
+  <!-- CDN Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .status-badge {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    .loading { background-color: #e2e8f0; color: #475569; }
+    .valid { background-color: #dcfce7; color: #15803d; }
+    .already-used { background-color: #fef3c7; color: #b45309; }
+    .error { background-color: #fee2e2; color: #b91c1c; }
+    .details { text-align: left; margin-top: 1.5rem; line-height: 1.6; }
+    button {
+      margin-top: 1.5rem;
+      padding: 10px 20px;
+      border: none;
+      background-color: #2563eb;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      width: 100%;
+    }
+    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+  </style>
 </head>
-<body class="bg-[#FAF8F5] text-slate-800 pb-20 font-sans min-h-screen flex flex-col justify-between">
+<body>
 
-  <!-- En-tête -->
-  <header class="text-center pt-8 pb-4">
-    <p class="text-[10px] font-bold text-slate-400 tracking-widest uppercase mb-0.5">BY SMARTECH</p>
-    <h1 class="text-2xl font-black text-[#1E293B]">Smart<span class="text-[#F59E0B]">Check</span></h1>
-  </header>
+<div class="card">
+  <h2>SmartCheck 3.0</h2>
+  <div id="badge" class="status-badge loading">Vérification en cours...</div>
+  
+  <div id="content">
+    <p>Patientez pendant la lecture des données d'accès.</p>
+  </div>
+</div>
 
-  <!-- CONTENU PRINCIPAL -->
-  <main class="max-w-md w-full mx-auto px-4 flex-1">
+<script>
+  // 1. Initialisation Supabase (remplacez avec vos accès)
+  const SUPABASE_URL = "https://VOTRE_PROJET.supabase.co";
+  const SUPABASE_ANON_KEY = "VOTRE_CLE_ANON";
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <!-- ONGLET 1: TABLEAU DE BORD -->
-    <section id="tab-accueil" class="tab-content space-y-3">
-      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100/80">
-        <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-chart-pie text-slate-700 text-lg"></i> Tableau de bord
-        </h2>
+  // 2. Extraction du token/UUID depuis les paramètres de l'URL (?token=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
 
-        <div class="grid grid-cols-2 gap-3 mb-3">
-          <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center">
-            <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-amber-400 rounded-r"></div>
-            <span id="stat-total" class="text-2xl font-black text-slate-800 leading-none mb-1">0</span>
-            <span class="text-[11px] text-slate-400 font-medium">Total Invités</span>
+  const badgeEl = document.getElementById('badge');
+  const contentEl = document.getElementById('content');
+
+  async function verifyCheckIn() {
+    if (!token) {
+      updateUI("error", "Code introuvable", "Aucun jeton ou code QR valide n'a été fourni dans l'URL.");
+      return;
+    }
+
+    try {
+      // 3. Récupération de l'invité via son UUID/token
+      const { data: guest, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('checkin_token', token)
+        .single();
+
+      if (error || !guest) {
+        updateUI("error", "Accès Refusé", "Ce code n'existe pas ou n'est plus valide.");
+        return;
+      }
+
+      // 4. Traitement selon le statut actuel
+      if (guest.checked_in) {
+        updateUI("already-used", "Déjà Scanné", `
+          <div class="details">
+            <p><strong>Nom :</strong> ${guest.full_name}</p>
+            <p><strong>Statut :</strong> Déjà entré(e)</p>
+            <p><strong>Heure de validation :</strong> ${new Date(guest.checked_in_at).toLocaleTimeString()}</p>
           </div>
+        `);
+      } else {
+        // 5. Validation et mise à jour de la présence dans Supabase
+        const { error: updateError } = await supabase
+          .from('guests')
+          .update({ 
+            checked_in: true, 
+            checked_in_at: new Date().toISOString() 
+          })
+          .eq('id', guest.id);
 
-          <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center">
-            <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-emerald-500 rounded-r"></div>
-            <span id="stat-presents" class="text-2xl font-black text-slate-800 leading-none mb-1">0</span>
-            <span class="text-[11px] text-slate-400 font-medium">Présents</span>
+        if (updateError) throw updateError;
+
+        updateUI("valid", "Accès Autorisé", `
+          <div class="details">
+            <p><strong>Nom :</strong> ${guest.full_name}</p>
+            <p><strong>Table/Zone :</strong> ${guest.table_number || 'Non assignée'}</p>
+            <p><strong>Entrée validée à :</strong> ${new Date().toLocaleTimeString()}</p>
           </div>
-        </div>
+        `);
+      }
 
-        <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center mb-3">
-          <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-amber-400 rounded-r"></div>
-          <span id="stat-taux" class="text-2xl font-black text-slate-800 leading-none mb-1">0%</span>
-          <span class="text-[11px] text-slate-400 font-medium">Taux d'accès</span>
-        </div>
+    } catch (err) {
+      console.error(err);
+      updateUI("error", "Erreur Système", "Impossible de communiquer avec le serveur de vérification.");
+    }
+  }
 
-        <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex items-center justify-between px-4">
-          <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-rose-500 rounded-r"></div>
-          <div class="flex flex-col">
-            <span id="stat-absents" class="text-2xl font-black text-slate-800 leading-none mb-1">0</span>
-            <span class="text-[11px] text-slate-400 font-medium">Absents</span>
-          </div>
-          <i class="fa-solid fa-user-xmark text-rose-400 text-xl"></i>
-        </div>
+  function updateUI(type, badgeText, htmlContent) {
+    badgeEl.className = `status-badge ${type}`;
+    badgeEl.textContent = badgeText;
+    contentEl.innerHTML = htmlContent;
+  }
 
-        <button onclick="switchTab('scanner')" class="w-full mt-4 bg-[#F59E0B] hover:bg-amber-600 active:scale-[0.98] text-white font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all">
-          <i class="fa-solid fa-qrcode text-lg"></i> Lancer un Scan
-        </button>
-      </div>
-    </section>
+  // Exécution au chargement
+  verifyCheckIn();
+</script>
 
-    <!-- ONGLET 2: SCANNER -->
-    <section id="tab-scanner" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 text-center">
-        <h2 class="text-base font-bold text-slate-800 mb-3">Scan du QR Code</h2>
-        <div id="reader" class="overflow-hidden rounded-xl bg-slate-100 min-h-[250px]"></div>
-        <div id="scan-result" class="mt-3 p-3 rounded-xl text-sm font-semibold hidden"></div>
-      </div>
-    </section>
-
-    <!-- ONGLET 3: LISTE DES INVITÉS (REPRODUCTION DE L'IMAGE) -->
-    <section id="tab-invites" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
-        
-        <!-- Barre de recherche et bouton d'actualisation -->
-        <div class="flex gap-2 mb-4">
-          <input type="text" id="guest-search" oninput="filterGuests()" placeholder="Chercher un ticket ou un nom..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500 text-slate-700">
-          <button onclick="fetchGuests()" class="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 px-3.5 py-2.5 rounded-xl transition flex items-center justify-center">
-            <i class="fa-solid fa-rotate-right text-xs"></i>
-          </button>
-        </div>
-
-        <!-- Liste des invités -->
-        <div id="guests-list" class="divide-y divide-slate-100">
-          <p class="text-center text-xs text-slate-400 py-6">Chargement des invités...</p>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ONGLET 4: PARAMÈTRES (EXCLUSIVEMENT N8N & IMPORT D'IMAGE) -->
-    <section id="tab-parametres" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 space-y-4">
-        <h2 class="text-base font-bold text-slate-800 mb-1">Paramètres n8n</h2>
-
-        <!-- Lien Webhook n8n -->
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Lien Webhook n8n (SmartCheck)</label>
-          <input type="text" id="cfg-n8n-url" placeholder="https://n8n.instance.com/webhook/..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500">
-        </div>
-
-        <!-- Import d'image depuis le téléphone -->
-        <div class="pt-2">
-          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Importer une image QR (Galerie téléphone)</label>
-          <input type="file" id="qr-file-input" accept="image/*" onchange="scanImageFile(event)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
-          <div id="file-scan-result" class="mt-2 p-2.5 rounded-xl text-xs font-semibold hidden"></div>
-        </div>
-
-        <button onclick="saveConfig()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-900 transition mt-2">
-          Enregistrer
-        </button>
-
-        <hr class="border-slate-100 my-2">
-
-        <button onclick="testConnection()" class="w-full border border-amber-500 text-amber-600 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-50 transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-plug"></i> Tester la connexion n8n
-        </button>
-
-        <button onclick="resetApp()" class="w-full border border-rose-200 text-rose-600 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-50 transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-rotate-right"></i> Réinitialiser
-        </button>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- BARRE DE NAVIGATION INFÉRIEURE -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 py-2.5 px-4 z-50">
-    <div class="max-w-md mx-auto flex justify-around items-center">
-      <button onclick="switchTab('accueil')" id="nav-accueil" class="nav-btn text-[#F59E0B] flex flex-col items-center gap-1 text-[11px] font-bold transition">
-        <i class="fa-solid fa-house text-lg"></i> Accueil
-      </button>
-      <button onclick="switchTab('scanner')" id="nav-scanner" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-[11px] font-bold transition">
-        <i class="fa-solid fa-qrcode text-lg"></i> Scanner
-      </button>
-      <button onclick="switchTab('invites')" id="nav-invites" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-[11px] font-bold transition">
-        <i class="fa-solid fa-users text-lg"></i> Invités
-      </button>
-      <button onclick="switchTab('parametres')" id="nav-parametres" class="nav-btn text-slate-400 flex flex-col items-center gap-1 text-[11px] font-bold transition">
-        <i class="fa-solid fa-gear text-lg"></i> Paramètres
-      </button>
-    </div>
-  </nav>
-
-  <script src="app.js"></script>
 </body>
 </html>
