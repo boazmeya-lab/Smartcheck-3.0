@@ -248,14 +248,17 @@ async function testerConnexion() {
 function MettreAJourAffichage() {
     let total = BaseDonneesInvites.length;
     let presents = BaseDonneesInvites.filter(g => verifierPresence(g)).length;
+    let absents = total - presents;
     let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
     
     let elTotal = document.getElementById('stat-total');
     let elPresent = document.getElementById('stat-present');
+    let elAbsent = document.getElementById('stat-absent');
     let elRatio = document.getElementById('stat-ratio');
     
     if (elTotal) elTotal.innerText = total;
     if (elPresent) elPresent.innerText = presents;
+    if (elAbsent) elAbsent.innerText = absents;
     if (elRatio) elRatio.innerText = ratio + '%';
     
     filtrerInvites();
@@ -283,3 +286,4 @@ function reinitialiserLocale() {
         MettreAJourAffichage();
     }
 }
+    
