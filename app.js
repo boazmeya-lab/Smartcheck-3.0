@@ -2,16 +2,50 @@ let supabaseClient = null;
 let html5QrcodeScanner = null;
 let guests = [];
 
-// 1. DÉMARRAGE ET CONFIGURATION
+// Initialisation au chargement
 document.addEventListener('DOMContentLoaded', () => {
   loadConfigInputs();
   initSupabase();
 });
 
+// Navigation entre onglets (Correction du blocage)
+function switchTab(tabName) {
+  // Masquer toutes les sections
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  
+  // Réinitialiser la couleur des boutons de navigation
+  document.querySelectorAll('.nav-btn').forEach(el => {
+    el.classList.remove('text-[#F59E0B]');
+    el.classList.add('text-slate-400');
+  });
+
+  // Afficher l'onglet sélectionné
+  const targetTab = document.getElementById(`tab-${tabName}`);
+  const targetNav = document.getElementById(`nav-${tabName}`);
+
+  if (targetTab) targetTab.classList.remove('hidden');
+  if (targetNav) {
+    targetNav.classList.remove('text-slate-400');
+    targetNav.classList.add('text-[#F59E0B]');
+  }
+
+  // Activer ou désactiver le scanner selon l'onglet
+  if (tabName === 'scanner') {
+    startScanner();
+  } else {
+    stopScanner();
+  }
+}
+
+// Chargement des identifiants
 function loadConfigInputs() {
-  document.getElementById('cfg-supa-url').value = localStorage.getItem('supa_url') || '';
-  document.getElementById('cfg-supa-key').value = localStorage.getItem('supa_key') || '';
-  document.getElementById('cfg-n8n-url').value = localStorage.getItem('n8n_url') || '';
+  const supaUrl = localStorage.getItem('supa_url') || '';
+  const supaKey = localStorage.getItem('supa_key') || '';
+  const n8nUrl = localStorage.getItem('n8n_url') || '';
+
+  if (document.getElementById('cfg-supa-url')) document.getElementById('cfg-supa-url').value = supaUrl;
+  if (document.getElementById('cfg-supa-key')) document.getElementById('cfg-supa-key').value = supaKey;
+  if (document.getElementById('cfg-n8n-url')) document.getElementById('cfg-n8n-url').value = n8nUrl;
 }
 
 function saveConfig() {
@@ -23,7 +57,7 @@ function saveConfig() {
   localStorage.setItem('supa_key', key);
   localStorage.setItem('n8n_url', n8n);
 
-  alert('Configuration enregistrée avec succès !');
+  alert('Configuration enregistrée !');
   initSupabase();
 }
 
@@ -32,21 +66,19 @@ function initSupabase() {
   const key = localStorage.getItem('supa_key');
 
   if (url && key) {
-    supabaseClient = supabase.createClient(url, key);
-    fetchGuests();
-    listenToSupabaseRealtime();
+    try {
+      supabaseClient = supabase.createClient(url, key);
+      fetchGuests();
+      listenToSupabaseRealtime();
+    } catch (e) {
+      console.error("Erreur d'initialisation Supabase:", e);
+    }
   }
 }
 
-// 2. RECUPÉRATION ET REALTIME SUPABASE
 async function fetchGuests() {
   if (!supabaseClient) return;
-
-  const { data, error } = await supabaseClient
-    .from('invites')
-    .select('*')
-    .order('nom');
-
+  const { data, error } = await supabaseClient.from('invites').select('*').order('nom');
   if (!error && data) {
     guests = data;
     renderGuests();
@@ -56,16 +88,14 @@ async function fetchGuests() {
 
 function listenToSupabaseRealtime() {
   if (!supabaseClient) return;
-
   supabaseClient
     .channel('public:invites')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'invites' }, () => {
-      fetchGuests(); // Rechargement automatique en temps réel
+      fetchGuests();
     })
     .subscribe();
 }
 
-// 3. TABLEAU DE BORD ET LISTE DES INVITÉS
 function updateDashboard() {
   const total = guests.length;
   const presents = guests.filter(g => g.present).length;
@@ -80,64 +110,41 @@ function updateDashboard() {
 
 function renderGuests() {
   const listEl = document.getElementById('guests-list');
+  if (!listEl) return;
 
   if (guests.length === 0) {
-    listEl.innerHTML = '<p class="text-center text-sm text-slate-400 py-4">Aucun invité trouvé.</p>';
+    listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Aucun invité trouvé.</p>';
     return;
   }
 
   listEl.innerHTML = guests.map(g => `
     <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
       <div>
-        <p class="font-bold text-slate-800 text-sm">${g.nom}</p>
-        <p class="text-xs text-slate-400">
-          ${g.scanned_at ? new Date(g.scanned_at).toLocaleTimeString() : 'Pas encore scanné'}
-        </p>
+        <p class="font-bold text-slate-800 text-xs">${g.nom}</p>
+        <p class="text-[10px] text-slate-400">${g.scanned_at ? new Date(g.scanned_at).toLocaleTimeString() : 'Pas encore scanné'}</p>
       </div>
-      <span class="px-2.5 py-1 rounded-full text-xs font-bold ${g.present ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${g.present ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
         ${g.present ? 'Présent' : 'Absent'}
       </span>
     </div>
   `).join('');
 }
 
-// 4. NAVIGATION ET SCANNER QR CODE
-function switchTab(tabName) {
-  document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.nav-btn').forEach(el => {
-    el.classList.remove('text-amber-500');
-    el.classList.add('text-slate-400');
-  });
-
-  document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-  document.getElementById(`nav-${tabName}`).classList.remove('text-slate-400');
-  document.getElementById(`nav-${tabName}`).classList.add('text-amber-500');
-
-  if (tabName === 'scanner') {
-    startScanner();
-  } else {
-    stopScanner();
-  }
-}
-
 function startScanner() {
   if (html5QrcodeScanner) return;
-
   html5QrcodeScanner = new Html5Qrcode("reader");
   html5QrcodeScanner.start(
     { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
     onScanSuccess
-  );
+  ).catch(err => console.error("Erreur caméra:", err));
 }
 
 function stopScanner() {
   if (html5QrcodeScanner) {
     html5QrcodeScanner.stop().then(() => {
       html5QrcodeScanner = null;
-    }).catch(() => {
-      html5QrcodeScanner = null;
-    });
+    }).catch(() => html5QrcodeScanner = null);
   }
 }
 
@@ -147,11 +154,10 @@ async function onScanSuccess(decodedText) {
 
   if (!supabaseClient) {
     resEl.classList.add('bg-rose-100', 'text-rose-800');
-    resEl.innerText = "Erreur: Supabase n'est pas configuré.";
+    resEl.innerText = "Supabase non configuré.";
     return;
   }
 
-  // Vérification de l'invité dans Supabase via ID ou Nom
   const { data: guest, error } = await supabaseClient
     .from('invites')
     .select('*')
@@ -160,11 +166,10 @@ async function onScanSuccess(decodedText) {
 
   if (error || !guest) {
     resEl.classList.add('bg-rose-100', 'text-rose-800');
-    resEl.innerText = "Invité introuvable !";
+    resEl.innerText = "Invité non trouvé !";
     return;
   }
 
-  // Validation de la présence dans la base de données
   await supabaseClient
     .from('invites')
     .update({ present: true, scanned_at: new Date().toISOString() })
@@ -173,11 +178,9 @@ async function onScanSuccess(decodedText) {
   resEl.classList.add('bg-emerald-100', 'text-emerald-800');
   resEl.innerText = `Accès Autorisé : ${guest.nom}`;
 
-  // Déclenchement de l'envoi vers n8n
   triggerN8nWebhook(guest);
 }
 
-// 5. INTÉGRATION N8N WEBHOOK
 async function triggerN8nWebhook(guest) {
   const n8nUrl = localStorage.getItem('n8n_url');
   if (!n8nUrl) return;
@@ -197,13 +200,12 @@ async function triggerN8nWebhook(guest) {
   }
 }
 
-// 6. OUTILS ET BOUTONS D'ACTION (TEST & RESET)
 async function testConnection() {
   const supaUrl = localStorage.getItem('supa_url');
   const n8nUrl = localStorage.getItem('n8n_url');
 
   if (!supaUrl) {
-    alert("Veuillez d'abord configurer Supabase dans les paramètres.");
+    alert("Configurez d'abord Supabase.");
     return;
   }
 
@@ -218,22 +220,22 @@ async function testConnection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ test: true })
       });
-      n8nMsg = res.ok ? "Connecté (200 OK)" : `Erreur HTTP ${res.status}`;
+      n8nMsg = res.ok ? "OK (200)" : `Erreur ${res.status}`;
     }
 
-    alert(`Test réussi !\n- Supabase: Connecté\n- n8n Webhook: ${n8nMsg}`);
+    alert(`Connexion réussie !\n• Supabase: Actif\n• n8n: ${n8nMsg}`);
   } catch (err) {
-    alert(`Échec du test: ${err.message}`);
+    alert(`Erreur de connexion: ${err.message}`);
   }
 }
 
 function resetApp() {
-  if (confirm("Voulez-vous réinitialiser tous les paramètres locaux ?")) {
+  if (confirm("Réinitialiser les paramètres locaux ?")) {
     localStorage.clear();
     loadConfigInputs();
     guests = [];
     renderGuests();
     updateDashboard();
-    alert("Application réinitialisée !");
+    alert("Application réinitialisée.");
   }
 }
