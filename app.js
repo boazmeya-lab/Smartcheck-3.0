@@ -1,15 +1,10 @@
-// État global des données
+// État des données
 const state = {
   totalInvites: 3,
-  presents: 0,
-  invitesList: [
-    { name: "Alice Dupont", statut: "absent" },
-    { name: "Bob Martin", statut: "absent" },
-    { name: "Charlie Durand", statut: "absent" }
-  ]
+  presents: 0
 };
 
-// Mise à jour du tableau de bord
+// Mise à jour de l'affichage du Tableau de Bord
 function updateDashboard() {
   const total = state.totalInvites;
   const presents = state.presents;
@@ -20,40 +15,9 @@ function updateDashboard() {
   document.getElementById('presents').textContent = presents;
   document.getElementById('absents').textContent = absents;
   document.getElementById('taux-acces').textContent = `${taux}%`;
-
-  renderInvitesList();
 }
 
-// Génération de la liste dans l'onglet Invités
-function renderInvitesList() {
-  const container = document.getElementById('liste-invites');
-  if (!container) return;
-
-  container.innerHTML = state.invitesList.map(inv => `
-    <li class="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-      <span class="font-medium text-[#1d2b3a]">${inv.name}</span>
-      <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${
-        inv.statut === 'présent' 
-          ? 'bg-green-100 text-green-700' 
-          : 'bg-red-100 text-red-700'
-      }">
-        ${inv.statut === 'présent' ? 'Présent' : 'Absent'}
-      </span>
-    </li>
-  `).join('');
-}
-
-// Enregistrement d'un scan réussi
-function scannerInvite() {
-  const nextAbsent = state.invitesList.find(i => i.statut === 'absent');
-  if (nextAbsent) {
-    nextAbsent.statut = 'présent';
-    state.presents++;
-    updateDashboard();
-  }
-}
-
-// Gestion de la navigation par onglets
+// Navigation entre onglets
 function setupNavigation() {
   const navButtons = document.querySelectorAll('.nav-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -62,39 +26,89 @@ function setupNavigation() {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
 
-      // Masquer toutes les vues
       tabContents.forEach(content => content.classList.add('hidden'));
+      document.getElementById(`page-${targetTab}`)?.classList.remove('hidden');
 
-      // Afficher la vue ciblée
-      const selectedView = document.getElementById(`page-${targetTab}`);
-      if (selectedView) selectedView.classList.remove('hidden');
-
-      // Réinitialiser les couleurs des boutons
       navButtons.forEach(b => {
         b.classList.remove('text-[#f29913]');
         b.classList.add('text-slate-400');
       });
 
-      // Activer le bouton cliqué
       btn.classList.remove('text-slate-400');
       btn.classList.add('text-[#f29913]');
     });
   });
 }
 
-// Initialisation au chargement
+// Test de connexion à n8n via Webhook
+async function testN8nConnection() {
+  const urlInput = document.getElementById('n8n-url');
+  const statusDiv = document.getElementById('n8n-status');
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    statusDiv.textContent = "Veuillez entrer une URL Webhook n8n valide.";
+    statusDiv.className = "text-xs font-semibold text-center text-amber-600 block";
+    return;
+  }
+
+  // Enregistrer le lien dans le navigateur
+  localStorage.setItem('n8n_webhook_url', url);
+
+  statusDiv.textContent = "Test en cours...";
+  statusDiv.className = "text-xs font-semibold text-center text-slate-500 block";
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'ping', message: 'Test de connexion SmartCheck' })
+    });
+
+    if (response.ok) {
+      statusDiv.textContent = "✓ Connexion réussie à n8n !";
+      statusDiv.className = "text-xs font-semibold text-center text-green-600 block";
+    } else {
+      statusDiv.textContent = `Erreur de réponse n8n (${response.status})`;
+      statusDiv.className = "text-xs font-semibold text-center text-red-600 block";
+    }
+  } catch (err) {
+    statusDiv.textContent = "× Échec de la connexion (Vérifiez l'URL ou CORS)";
+    statusDiv.className = "text-xs font-semibold text-center text-red-600 block";
+  }
+}
+
+// Initialisation
 document.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
   updateDashboard();
 
-  // Bouton "Lancer un Scan"
+  // Charger le lien n8n déjà sauvegardé
+  const savedUrl = localStorage.getItem('n8n_webhook_url');
+  if (savedUrl) {
+    document.getElementById('n8n-url').value = savedUrl;
+  }
+
+  // Événements boutons
+  document.getElementById('btn-test-n8n')?.addEventListener('click', testN8nConnection);
+
+  document.getElementById('btn-reset')?.addEventListener('click', () => {
+    if (confirm("Voulez-vous vraiment réinitialiser les présences à zéro ?")) {
+      state.presents = 0;
+      updateDashboard();
+      alert("Les données ont été réinitialisées.");
+    }
+  });
+
   document.getElementById('btn-scan')?.addEventListener('click', () => {
     document.querySelector('[data-tab="scanner"]')?.click();
   });
 
-  // Bouton d'action dans l'onglet Scanner
-  document.getElementById('btn-valider-scan')?.addEventListener('click', () => {
-    scannerInvite();
+  document.getElementById('btn-simuler-scan')?.addEventListener('click', () => {
+    if (state.presents < state.totalInvites) {
+      state.presents++;
+      updateDashboard();
+    }
     document.querySelector('[data-tab="accueil"]')?.click();
   });
 });
