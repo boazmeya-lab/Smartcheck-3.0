@@ -1,378 +1,89 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SmartCheck by Smartech</title>
-
-<!-- CONFIGURATION PWA -->
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#f39c12">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-
-<!-- IMPORTATION DU SCANNEUR ET DES ICONES -->
-<script src="https://unpkg.com/html5-qrcode"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<style>
-:root {
-    --primary: #f39c12;         /* Orange Vif */
-    --primary-dark: #d35400;    /* Orange Foncé */
-    --success: #2ecc71;
-    --danger: #e74c3c;
-    --warning: #f1c40f;
-    --dark: #2c3e50;
-    --bg: #fdfaf6;              /* Fond très légèrement chaud */
-    --card-shadow: 0 4px 20px rgba(243, 156, 18, 0.08);
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--bg);
-    margin: 0;
-    padding: 15px 15px 80px 15px;
-    color: var(--dark);
-    -webkit-user-select: none;
-}
-
-.header-container {
-    margin-top: 15px;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-h1 {
-    color: var(--dark);
-    font-size: 28px;
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-}
-
-h1 span {
-    color: var(--primary);
-}
-
-.brand-subtitle {
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: #94a3b8;
-    margin-top: 2px;
-}
-
-.app-view {
-    display: none;
-    max-width: 480px;
-    margin: 0 auto;
-}
-
-.app-view.active {
-    display: block;
-}
-
-.card {
-    background: white;
-    padding: 20px;
-    margin: 15px auto;
-    border-radius: 20px;
-    box-shadow: var(--card-shadow);
-    box-sizing: border-box;
-}
-
-.nav-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    display: flex;
-    justify-content: space-around;
-    padding: 10px 0;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
-    z-index: 999;
-}
-
-.nav-item {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 11px;
-    cursor: pointer;
-    font-weight: 600;
-    width: 25%;
-}
-
-.nav-item i {
-    font-size: 20px;
-    margin-bottom: 4px;
-}
-
-.nav-item.active {
-    color: var(--primary);
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.stat-box {
-    background: #fff;
-    padding: 15px;
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: var(--card-shadow);
-    border-left: 4px solid var(--primary);
-}
-
-.stat-box.success { border-left-color: var(--success); }
-
-.stat-box.full-width {
-    grid-column: span 2;
-}
-
-.stat-number {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--dark);
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #7f8c8d;
-    margin-top: 5px;
-}
-
-.search-box, .input-field {
-    width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 15px;
-    box-sizing: border-box;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.search-box:focus, .input-field:focus {
-    border-color: var(--primary);
-}
-
-.guest-list {
-    max-height: 400px;
-    overflow-y: auto;
-    margin-top: 15px;
-}
-
-.guest-item {
-    padding: 12px 15px;
-    border-bottom: 1px solid #fdf5eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 15px;
-}
-
-.guest-info strong {
-    display: block;
-    color: var(--dark);
-}
-
-.guest-time {
-    font-size: 11px;
-    color: #bdc3c7;
-}
-
-.guest-table-badge {
-    display: inline-block;
-    background: #fdf5eb;
-    color: var(--primary-dark);
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    margin-top: 3px;
-}
-
-.badge {
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.badge.present { background: rgba(46, 204, 113, 0.15); color: var(--success); }
-.badge.absent { background: rgba(148, 163, 184, 0.15); color: #64748b; }
-
-button.btn-main {
-    background: var(--primary);
-    color: white;
-    border: none;
-    width: 100%;
-    padding: 16px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 14px;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.25);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-}
-
-button.btn-main:hover { background: var(--primary-dark); }
-button.btn-secondary {
-    background: #e2e8f0;
-    color: var(--dark);
-    border: none;
-    padding: 10px 15px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-#scan-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 10000;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    padding: 20px;
-}
-
-.flash-title {
-    font-size: 22px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 5px;
-    opacity: 0.9;
-}
-
-.flash-name {
-    font-size: 32px;
-    font-weight: 800;
-    background: rgba(255, 255, 255, 0.15);
-    padding: 12px 25px;
-    border-radius: 16px;
-    margin: 10px 0;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    word-break: break-word;
-    max-width: 90%;
-}
-
-.flash-table {
-    font-size: 24px;
-    font-weight: 800;
-    background: #ffffff;
-    color: #1e293b;
-    padding: 12px 30px;
-    border-radius: 14px;
-    margin-top: 10px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.flash-extra {
-    font-size: 16px;
-    margin-top: 10px;
-    opacity: 0.9;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartCheck - Tableau de bord</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body class="bg-[#faf8f5] font-sans min-h-screen flex flex-col justify-between max-w-md mx-auto shadow-lg relative">
 
-<div class="header-container">
-    <div class="brand-subtitle">By Smartech</div>
-    <h1>Smart<span>Check</span></h1>
-</div>
+  <!-- En-tête / Header -->
+  <header class="pt-8 pb-4 text-center">
+    <span class="text-xs font-bold tracking-widest text-slate-400 uppercase">BY SMARTECH</span>
+    <h1 class="text-3xl font-extrabold text-[#1d2b3a]">
+      Smart<span class="text-[#f29913]">Check</span>
+    </h1>
+  </header>
 
-<!-- ACCUEIL -->
-<div id="view-home" class="app-view active">
-    <div class="card">
-        <h3><i class="fa-solid fa-chart-pie"></i> Tableau de bord</h3>
-        <div class="stats-grid">
-            <div class="stat-box">
-                <div id="stat-total" class="stat-number">0</div>
-                <div class="stat-label">Total Invités</div>
-            </div>
-            <div class="stat-box success">
-                <div id="stat-present" class="stat-number">0</div>
-                <div class="stat-label">Présents</div>
-            </div>
-            <div class="stat-box full-width">
-                <div id="stat-ratio" class="stat-number">0%</div>
-                <div class="stat-label">Taux d'accès</div>
-            </div>
-        </div>
-        <button class="btn-main" onclick="switchView('scanner')">
-            <i class="fa-solid fa-qrcode"></i> Lancer un Scan
-        </button>
-    </div>
-</div>
+  <!-- Contenu Principal -->
+  <main class="px-5 flex-1">
+    <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+      
+      <!-- Titre du Tableau de bord -->
+      <div class="flex items-center gap-2 mb-6 text-[#1d2b3a]">
+        <i class="fa-solid fa-chart-pie text-xl"></i>
+        <h2 class="text-xl font-bold">Tableau de bord</h2>
+      </div>
 
-<!-- SCANNER -->
-<div id="view-scanner" class="app-view">
-    <div class="card">
-        <button id="start-btn" class="btn-main" onclick="demarrerScan()">📷 Ouvrir le Scanneur</button>
-        <div id="reader"></div>
-    </div>
-</div>
-
-<!-- INVITÉS -->
-<div id="view-guests" class="app-view">
-    <div class="card">
-        <div style="display:flex; gap:10px; margin-bottom: 15px;">
-            <input type="text" id="search-input" class="search-box" placeholder="Chercher un ticket ou un nom..." oninput="filtrerInvites()">
-            <button class="btn-secondary" onclick="synchroniserDonnees()"><i class="fa-solid fa-sync"></i></button>
-        </div>
-        <div id="liste-invites" class="guest-list"></div>
-    </div>
-</div>
-
-<!-- PARAMÈTRES -->
-<div id="view-settings" class="app-view">
-    <div class="card">
-        <h3><i class="fa-solid fa-gear"></i> Configuration webhook n8n</h3>
-        <p style="font-size:13px; color:#7f8c8d;">Entrez l'URL de votre Webhook n8n connecté à Supabase.</p>
-        <input type="url" id="webhook-url" class="input-field" placeholder="https://..." style="margin-bottom: 15px;">
+      <!-- Grille à 4 cartes -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
         
-        <button class="btn-main" onclick="sauvegarderParametres()" style="margin-bottom:10px;">
-            <i class="fa-solid fa-floppy-disk"></i> Sauvegarder la configuration
-        </button>
-        <button class="btn-secondary" onclick="testerConnexion()" style="width:100%;">
-            <i class="fa-solid fa-wifi"></i> Tester la connexion
-        </button>
-        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-        <button class="btn-secondary" onclick="reinitialiserLocale()" style="width:100%; color: var(--danger);">
-            <i class="fa-solid fa-trash-can"></i> Réinitialiser le cache local
-        </button>
+        <!-- Carte 1 : Total Invités -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-[#f29913] border-y border-r border-slate-100 text-center">
+          <span class="block text-2xl font-bold text-[#1d2b3a]">3</span>
+          <span class="text-xs text-slate-400 font-medium">Total Invités</span>
+        </div>
+
+        <!-- Carte 2 : Présents -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-[#27ae60] border-y border-r border-slate-100 text-center">
+          <span class="block text-2xl font-bold text-[#1d2b3a]">0</span>
+          <span class="text-xs text-slate-400 font-medium">Présents</span>
+        </div>
+
+        <!-- Carte 3 : Absents (Nouvelle case) -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-[#eb5757] border-y border-r border-slate-100 text-center">
+          <span class="block text-2xl font-bold text-[#1d2b3a]">3</span>
+          <span class="text-xs text-slate-400 font-medium">Absents</span>
+        </div>
+
+        <!-- Carte 4 : Taux d'accès -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-[#2f80ed] border-y border-r border-slate-100 text-center">
+          <span class="block text-2xl font-bold text-[#1d2b3a]">0%</span>
+          <span class="text-xs text-slate-400 font-medium">Taux d'accès</span>
+        </div>
+
+      </div>
+
+      <!-- Bouton Lancer un Scan -->
+      <button class="w-full bg-[#f29913] active:bg-[#d8840b] text-white font-bold py-3.5 px-4 rounded-2xl shadow-md flex items-center justify-center gap-2 text-base transition">
+        <i class="fa-solid fa-qrcode text-lg"></i>
+        <span>Lancer un Scan</span>
+      </button>
+
     </div>
-</div>
+  </main>
 
-<!-- NAV BAR -->
-<div class="nav-bar">
-    <button class="nav-item active" onclick="switchView('home', this)"><i class="fa-solid fa-house"></i>Accueil</button>
-    <button class="nav-item" onclick="switchView('scanner', this)"><i class="fa-solid fa-qrcode"></i>Scanner</button>
-    <button class="nav-item" onclick="switchView('guests', this)"><i class="fa-solid fa-users"></i>Invités</button>
-    <button class="nav-item" onclick="switchView('settings', this)"><i class="fa-solid fa-gear"></i>Paramètres</button>
-</div>
+  <!-- Barre de navigation bas de page -->
+  <nav class="bg-white border-t border-slate-100 py-3 px-6 flex justify-between items-center mt-6">
+    <a href="#" class="flex flex-col items-center text-[#f29913]">
+      <i class="fa-solid fa-house text-lg"></i>
+      <span class="text-[10px] font-semibold mt-1">Accueil</span>
+    </a>
+    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
+      <i class="fa-solid fa-qrcode text-lg"></i>
+      <span class="text-[10px] font-semibold mt-1">Scanner</span>
+    </a>
+    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
+      <i class="fa-solid fa-users text-lg"></i>
+      <span class="text-[10px] font-semibold mt-1">Invités</span>
+    </a>
+    <a href="#" class="flex flex-col items-center text-slate-400 hover:text-slate-600">
+      <i class="fa-solid fa-gear text-lg"></i>
+      <span class="text-[10px] font-semibold mt-1">Paramètres</span>
+    </a>
+  </nav>
 
-<div id="scan-overlay"></div>
-<script src="./app.js"></script>
+</body>
+</html>
