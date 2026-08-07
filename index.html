@@ -134,10 +134,7 @@ h1 span {
 }
 
 .stat-box.success { border-left-color: var(--success); }
-
-.stat-box.full-width {
-    grid-column: span 2;
-}
+.stat-box.danger { border-left-color: var(--danger); }
 
 .stat-number {
     font-size: 24px;
@@ -316,7 +313,11 @@ button.btn-secondary {
                 <div id="stat-present" class="stat-number">0</div>
                 <div class="stat-label">Présents</div>
             </div>
-            <div class="stat-box full-width">
+            <div class="stat-box danger">
+                <div id="stat-absent" class="stat-number">0</div>
+                <div class="stat-label">Absents</div>
+            </div>
+            <div class="stat-box">
                 <div id="stat-ratio" class="stat-number">0%</div>
                 <div class="stat-label">Taux d'accès</div>
             </div>
