@@ -4,10 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SmartCheck 3.0 - Vérification d'Accès</title>
-  
   <!-- CDN Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -39,6 +37,18 @@
     .already-used { background-color: #fef3c7; color: #b45309; }
     .error { background-color: #fee2e2; color: #b91c1c; }
     .details { text-align: left; margin-top: 1.5rem; line-height: 1.6; }
+    button {
+      margin-top: 1.5rem;
+      padding: 10px 20px;
+      border: none;
+      background-color: #2563eb;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      width: 100%;
+    }
+    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -53,127 +63,81 @@
 </div>
 
 <script>
-  // ==========================================
-  // CONFIGURATION & INITIALISATION
-  // ==========================================
+  // 1. Initialisation Supabase (remplacez avec vos accès)
   const SUPABASE_URL = "https://VOTRE_PROJET.supabase.co";
   const SUPABASE_ANON_KEY = "VOTRE_CLE_ANON";
-
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // 2. Extraction du token/UUID depuis les paramètres de l'URL (?token=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
 
   const badgeEl = document.getElementById('badge');
   const contentEl = document.getElementById('content');
 
-  // ==========================================
-  // FONCTIONS AUXILIAIRES
-  // ==========================================
-  function updateUI(type, badgeText, htmlContent) {
-    if (badgeEl) {
-      badgeEl.className = `status-badge ${type}`;
-      badgeEl.textContent = badgeText;
-    }
-    if (contentEl) {
-      contentEl.innerHTML = htmlContent;
-    }
-  }
-
-  function formatTime(isoString) {
-    if (!isoString) return '';
-    return new Date(isoString).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  }
-
-  // ==========================================
-  // LOGIQUE SMARTCHECK 3.0
-  // ==========================================
   async function verifyCheckIn() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-
     if (!token) {
-      updateUI(
-        'error',
-        'Code introuvable',
-        '<p>Aucun jeton d\'accès ou code QR valide n\'a été détecté dans l\'URL.</p>'
-      );
+      updateUI("error", "Code introuvable", "Aucun jeton ou code QR valide n'a été fourni dans l'URL.");
       return;
     }
 
     try {
-      // Recherche de l'invité dans Supabase
-      const { data: guest, error: fetchError } = await supabase
+      // 3. Récupération de l'invité via son UUID/token
+      const { data: guest, error } = await supabase
         .from('guests')
-        .select('id, full_name, checked_in, checked_in_at, table_number')
+        .select('*')
         .eq('checkin_token', token)
         .single();
 
-      if (fetchError || !guest) {
-        updateUI(
-          'error',
-          'Accès Refusé',
-          '<p>Ce code d\'accès est invalide ou n\'existe pas dans la base de données.</p>'
-        );
+      if (error || !guest) {
+        updateUI("error", "Accès Refusé", "Ce code n'existe pas ou n'est plus valide.");
         return;
       }
 
-      // Cas : Déjà scanné
+      // 4. Traitement selon le statut actuel
       if (guest.checked_in) {
-        updateUI(
-          'already-used',
-          'Déjà Scanné',
-          `
+        updateUI("already-used", "Déjà Scanné", `
           <div class="details">
             <p><strong>Nom :</strong> ${guest.full_name}</p>
-            <p><strong>Statut :</strong> Déjà présent(e)</p>
-            <p><strong>Heure de passage :</strong> ${formatTime(guest.checked_in_at)}</p>
+            <p><strong>Statut :</strong> Déjà entré(e)</p>
+            <p><strong>Heure de validation :</strong> ${new Date(guest.checked_in_at).toLocaleTimeString()}</p>
           </div>
-          `
-        );
-        return;
+        `);
+      } else {
+        // 5. Validation et mise à jour de la présence dans Supabase
+        const { error: updateError } = await supabase
+          .from('guests')
+          .update({ 
+            checked_in: true, 
+            checked_in_at: new Date().toISOString() 
+          })
+          .eq('id', guest.id);
+
+        if (updateError) throw updateError;
+
+        updateUI("valid", "Accès Autorisé", `
+          <div class="details">
+            <p><strong>Nom :</strong> ${guest.full_name}</p>
+            <p><strong>Table/Zone :</strong> ${guest.table_number || 'Non assignée'}</p>
+            <p><strong>Entrée validée à :</strong> ${new Date().toLocaleTimeString()}</p>
+          </div>
+        `);
       }
-
-      // Cas : Premier passage (Validation)
-      const nowIso = new Date().toISOString();
-
-      const { error: updateError } = await supabase
-        .from('guests')
-        .update({
-          checked_in: true,
-          checked_in_at: nowIso
-        })
-        .eq('id', guest.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      updateUI(
-        'valid',
-        'Accès Autorisé',
-        `
-        <div class="details">
-          <p><strong>Nom :</strong> ${guest.full_name}</p>
-          <p><strong>Table / Zone :</strong> ${guest.table_number || 'Non assignée'}</p>
-          <p><strong>Entrée enregistrée :</strong> ${formatTime(nowIso)}</p>
-        </div>
-        `
-      );
 
     } catch (err) {
-      console.error('SmartCheck Error:', err);
-      updateUI(
-        'error',
-        'Erreur Réseau',
-        '<p>Une erreur est survenue lors de la communication avec le serveur.</p>'
-      );
+      console.error(err);
+      updateUI("error", "Erreur Système", "Impossible de communiquer avec le serveur de vérification.");
     }
   }
 
-  // Lancement automatique
-  document.addEventListener('DOMContentLoaded', verifyCheckIn);
+  function updateUI(type, badgeText, htmlContent) {
+    badgeEl.className = `status-badge ${type}`;
+    badgeEl.textContent = badgeText;
+    contentEl.innerHTML = htmlContent;
+  }
+
+  // Exécution au chargement
+  verifyCheckIn();
 </script>
 
 </body>
