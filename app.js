@@ -1,285 +1,391 @@
-let html5QrcodeScanner;
-let BaseDonneesInvites = JSON.parse(localStorage.getItem('smartcheck_db')) || [];
-let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SmartCheck by Smartech</title>
 
-document.addEventListener('DOMContentLoaded', () => {
-    let inputUrl = document.getElementById('webhook-url');
-    if (inputUrl) inputUrl.value = WebhookUrl;
-    MettreAJourAffichage();
-});
+<!-- CONFIGURATION PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#f39c12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-function extraireNom(guest) {
-    if (!guest) return 'Nom Inconnu';
-    return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || 'Invité sans nom';
+<!-- IMPORTATION DU SCANNEUR ET DES ICONES -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root {
+    --primary: #f39c12;         /* Orange Vif */
+    --primary-dark: #d35400;    /* Orange Foncé */
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f1c40f;
+    --dark: #2c3e50;
+    --bg: #fdfaf6;              /* Fond très légèrement chaud */
+    --card-shadow: 0 4px 20px rgba(243, 156, 18, 0.08);
 }
 
-// VÉRIFICATION STRICTE DE LA PRÉSENCE
-function verifierPresence(guest) {
-    if (!guest) return false;
-    
-    // Si c'un boolean explicite
-    if (guest.scan === true || guest.statut === true || guest.presence === true) return true;
-    
-    // Récupération de n'importe quel champ de statut
-    let val = guest.statut || guest.scan_status || guest.presence || guest.présence || guest.status;
-    
-    if (typeof val === 'string') {
-        let cleanVal = val.trim().toLowerCase();
-        return cleanVal === 'présent' || cleanVal === 'present' || cleanVal === 'oui' || cleanVal === 'true';
-    }
-    
-    return false;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 15px 15px 80px 15px;
+    color: var(--dark);
+    -webkit-user-select: none;
 }
 
-function switchView(viewId, element) {
-    document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
-    document.getElementById(`view-${viewId}`).classList.add('active');
-    if(element) {
-        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-        element.classList.add('active');
-    }
-    if (viewId !== 'scanner' && html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(err => console.log(err));
-        let btn = document.getElementById('start-btn');
-        if (btn) btn.style.display = 'flex';
-    }
+.header-container {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
-function demarrerScan() {
-    document.getElementById('start-btn').style.display = 'none';
-    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: { width: 250, height: 250 } }, false);
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+h1 {
+    color: var(--dark);
+    font-size: 28px;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
-function normaliserTexte(str) {
-    if(!str) return '';
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+h1 span {
+    color: var(--primary);
 }
 
-function onScanSuccess(decodedText) {
-    let codeScanne = decodedText.trim();
-    html5QrcodeScanner.clear().catch(err => console.log(err));
-    
-    let invite = BaseDonneesInvites.find(g => 
-        (g.ticket_id && g.ticket_id.toUpperCase() === codeScanne.toUpperCase()) ||
-        normaliserTexte(extraireNom(g)) === normaliserTexte(codeScanne)
-    );
-    
-    if (invite) {
-        if (verifierPresence(invite)) {
-            let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
-            let displayTable = (invite.tableau || invite.table);
-            let tableText = (displayTable && displayTable !== 'N/A' && displayTable !== 'Non attribuée') 
-                ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${displayTable}</div>` 
-                : `<div class="flash-table">📍 Sans Table</div>`;
-            
-            declencherFlash(
-                `<div class="flash-title">Déjà Scanné ! ⚠️</div>
-                 <div class="flash-name">${extraireNom(invite)}</div>
-                 ${tableText}
-                 <span class="flash-extra">${detailHeure}</span>`, 
-                'var(--danger)'
-            );
-            relancerScanneurApresDelai();
-        } else {
-            validerEntree(invite);
-        }
-    } else {
-        declencherFlash(
-            `<div class="flash-title">Accès Refusé ❌</div>
-             <div class="flash-name">Ticket Inconnu</div>
-             <div class="flash-extra">Veuillez synchroniser la base de données Supabase dans l'onglet "Invités".</div>`, 
-            'var(--danger)'
-        );
-        relancerScanneurApresDelai();
-    }
+.brand-subtitle {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #94a3b8;
+    margin-top: 2px;
 }
 
-function onScanFailure(error) {}
-
-async function validerEntree(invite) {
-    let maintenant = new Date();
-    let heureActuelle = maintenant.getHours().toString().padStart(2, '0') + ':' + maintenant.getMinutes().toString().padStart(2, '0');
-    
-    invite.statut = 'Présent';
-    invite.scan_status = 'Présent';
-    invite.scan = true;
-    invite.heure = heureActuelle;
-
-    sauvegarderLocalement();
-    MettreAJourAffichage();
-    
-    let nomPropre = extraireNom(invite);
-    let displayTable = (invite.tableau || invite.table);
-    let tableHtml = (displayTable && displayTable !== 'N/A' && displayTable !== 'Non attribuée') 
-        ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> Table : ${displayTable}</div>` 
-        : `<div class="flash-table">📍 Sans Table</div>`;
-
-    declencherFlash(
-        `<div class="flash-title">Accès Autorisé ✅</div>
-         <div class="flash-name">${nomPropre}</div>
-         ${tableHtml}`, 
-        'var(--success)'
-    );
-
-    if (WebhookUrl) {
-        try {
-            await fetch(WebhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    action: 'checkin', 
-                    ticket_id: invite.ticket_id, 
-                    nom_complet: nomPropre, 
-                    heure: heureActuelle,
-                    table: displayTable || 'Non attribuée'
-                })
-            });
-        } catch (e) {
-            console.error("Erreur Webhook", e);
-        }
-    }
-    relancerScanneurApresDelai();
+.app-view {
+    display: none;
+    max-width: 480px;
+    margin: 0 auto;
 }
 
-function relancerScanneurApresDelai() {
-    setTimeout(() => {
-        if (document.getElementById('view-scanner').classList.contains('active')) {
-            demarrerScan();
-        }
-    }, 2500);
+.app-view.active {
+    display: block;
 }
 
-async function synchroniserDonnees() {
-    if (!WebhookUrl) {
-        alert("Veuillez configurer l'URL du Webhook.");
-        return;
-    }
-    try {
-        let response = await fetch(WebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getGuests' })
-        });
-        if (response.ok) {
-            let donnees = await response.json(); 
-            if (Array.isArray(donnees)) {
-                BaseDonneesInvites = donnees;
-                sauvegarderLocalement();
-                MettreAJourAffichage();
-                alert("Données Supabase synchronisées avec succès !");
-            }
-        } else {
-            alert("Erreur de récupération des données.");
-        }
-    } catch (e) {
-        alert("Erreur de connexion n8n.");
-    }
+.card {
+    background: white;
+    padding: 20px;
+    margin: 15px auto;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    box-sizing: border-box;
 }
 
-function filtrerInvites() {
-    let inputSearch = document.getElementById('search-input');
-    let query = inputSearch ? normaliserTexte(inputSearch.value) : '';
-    let listeDiv = document.getElementById('liste-invites');
-    if (!listeDiv) return;
-    listeDiv.innerHTML = '';
-    
-    let invitesFiltres = BaseDonneesInvites.filter(g => 
-        normaliserTexte(extraireNom(g)).includes(query) ||
-        normaliserTexte(g.ticket_id).includes(query)
-    );
-    
-    if(invitesFiltres.length === 0) {
-        listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité trouvé.</p>';
-        return;
-    }
-    
-    invitesFiltres.forEach(guest => {
-        let estPresent = verifierPresence(guest);
-        let badgeClass = estPresent ? 'present' : 'absent';
-        let detailHeure = (estPresent && guest.heure) ? `Scanné à ${guest.heure}` : 'Non arrivé';
-        
-        let rawTable = guest.tableau || guest.table;
-        let displayTable = (rawTable && rawTable !== 'N/A' && rawTable !== 'Non attribuée') ? rawTable : 'Non attribuée';
-        let tableBadge = `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${displayTable}</div>`;
-        
-        let nomPropre = extraireNom(guest);
-        
-        listeDiv.innerHTML += `
-            <div class="guest-item">
-                <div class="guest-info">
-                    <strong>${nomPropre}</strong>
-                    <span class="guest-time">${detailHeure}</span>
-                    ${tableBadge}
-                </div>
-                <div>
-                    <span class="badge ${badgeClass}">${estPresent ? 'Présent' : 'Absent'}</span>
-                    ${!estPresent ? `<button onclick="forcerValidation('${guest.ticket_id || nomPropre}')" style="margin-left:8px; font-size:11px; padding:4px 6px; border-radius:5px; border:none; background:var(--primary); color:white; cursor:pointer;"><i class="fa-solid fa-check"></i></button>` : ''}
-                </div>
+.nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+    z-index: 999;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    width: 25%;
+}
+
+.nav-item i {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.stat-box {
+    background: #fff;
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    border-left: 4px solid var(--primary);
+}
+
+.stat-box.success { border-left-color: var(--success); }
+
+.stat-box.full-width {
+    grid-column: span 2;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--dark);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.search-box, .input-field {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-box:focus, .input-field:focus {
+    border-color: var(--primary);
+}
+
+.guest-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 15px;
+}
+
+.guest-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #fdf5eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+}
+
+.guest-info strong {
+    display: block;
+    color: var(--dark);
+}
+
+.guest-time {
+    font-size: 11px;
+    color: #bdc3c7;
+}
+
+.guest-table-badge {
+    display: inline-block;
+    background: #fdf5eb;
+    color: var(--primary-dark);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.badge.present { background: rgba(46, 204, 113, 0.15); color: var(--success); }
+.badge.absent { background: rgba(148, 163, 184, 0.15); color: #64748b; }
+
+button.btn-main {
+    background: var(--primary);
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+button.btn-main:hover { background: var(--primary-dark); }
+button.btn-secondary {
+    background: #e2e8f0;
+    color: var(--dark);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#scan-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px;
+}
+
+.flash-title {
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    opacity: 0.9;
+}
+
+.flash-name {
+    font-size: 32px;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 12px 25px;
+    border-radius: 16px;
+    margin: 10px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    word-break: break-word;
+    max-width: 90%;
+}
+
+.flash-table {
+    font-size: 24px;
+    font-weight: 800;
+    background: #ffffff;
+    color: #1e293b;
+    padding: 12px 30px;
+    border-radius: 14px;
+    margin-top: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.flash-extra {
+    font-size: 16px;
+    margin-top: 10px;
+    opacity: 0.9;
+}
+</style>
+</head>
+<body>
+
+<div class="header-container">
+    <div class="brand-subtitle">By Smartech</div>
+    <h1>Smart<span>Check</span></h1>
+</div>
+
+<!-- ACCUEIL -->
+<div id="view-home" class="app-view active">
+    <div class="card">
+        <h3><i class="fa-solid fa-chart-pie"></i> Tableau de bord</h3>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div id="stat-total" class="stat-number">0</div>
+                <div class="stat-label">Total Invités</div>
             </div>
-        `;
-    });
-}
+            <div class="stat-box success">
+                <div id="stat-present" class="stat-number">0</div>
+                <div class="stat-label">Présents</div>
+            </div>
+            <div class="stat-box full-width">
+                <div id="stat-ratio" class="stat-number">0%</div>
+                <div class="stat-label">Taux d'accès</div>
+            </div>
+        </div>
+        <button class="btn-main" onclick="switchView('scanner', document.querySelectorAll('.nav-item')[1])">
+            <i class="fa-solid fa-qrcode"></i> Lancer un Scan
+        </button>
+    </div>
+</div>
 
-function forcerValidation(identifier) {
-    let invite = BaseDonneesInvites.find(g => g.ticket_id === identifier || extraireNom(g) === identifier);
-    if (invite) validerEntree(invite);
-}
+<!-- SCANNER -->
+<div id="view-scanner" class="app-view">
+    <div class="card">
+        <button id="start-btn" class="btn-main" onclick="demarrerScan()">📷 Ouvrir le Scanneur</button>
+        <div id="reader"></div>
+    </div>
+</div>
 
-function sauvegarderParametres() {
-    WebhookUrl = document.getElementById('webhook-url').value.trim();
-    localStorage.setItem('smartcheck_webhook', WebhookUrl);
-    alert("Configuration enregistrée !");
-}
+<!-- INVITÉS -->
+<div id="view-guests" class="app-view">
+    <div class="card">
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
+            <input type="text" id="search-input" class="search-box" placeholder="Chercher un ticket ou un nom..." oninput="filtrerInvites()">
+            <button class="btn-secondary" onclick="synchroniserDonnees()"><i class="fa-solid fa-sync"></i></button>
+        </div>
+        <div id="liste-invites" class="guest-list"></div>
+    </div>
+</div>
 
-async function testerConnexion() {
-    let url = document.getElementById('webhook-url').value.trim();
-    if(!url) return alert("Entrez une URL.");
-    try {
-        let res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action:'ping'}) });
-        if(res.ok) alert("Connecté à n8n avec succès ! 🚀");
-        else alert("Réponse du serveur avec une erreur.");
-    } catch(e) {
-        alert("Échec de la connexion.");
-    }
-}
+<!-- PARAMÈTRES -->
+<div id="view-settings" class="app-view">
+    <div class="card">
+        <h3><i class="fa-solid fa-gear"></i> Configuration webhook n8n</h3>
+        <p style="font-size:13px; color:#7f8c8d;">Entrez l'URL de votre Webhook n8n connecté à Supabase.</p>
+        <input type="url" id="webhook-url" class="input-field" placeholder="https://..." style="margin-bottom: 15px;">
+        
+        <button class="btn-main" onclick="sauvegarderParametres()" style="margin-bottom:10px;">
+            <i class="fa-solid fa-floppy-disk"></i> Sauvegarder la configuration
+        </button>
+        <button class="btn-secondary" onclick="testerConnexion()" style="width:100%;">
+            <i class="fa-solid fa-wifi"></i> Tester la connexion
+        </button>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        <button class="btn-secondary" onclick="reinitialiserLocale()" style="width:100%; color: var(--danger);">
+            <i class="fa-solid fa-trash-can"></i> Réinitialiser le cache local
+        </button>
+    </div>
+</div>
 
-function MettreAJourAffichage() {
-    let total = BaseDonneesInvites.length;
-    let presents = BaseDonneesInvites.filter(g => verifierPresence(g)).length;
-    let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
-    
-    let elTotal = document.getElementById('stat-total');
-    let elPresent = document.getElementById('stat-present');
-    let elRatio = document.getElementById('stat-ratio');
-    
-    if (elTotal) elTotal.innerText = total;
-    if (elPresent) elPresent.innerText = presents;
-    if (elRatio) elRatio.innerText = ratio + '%';
-    
-    filtrerInvites();
-}
+<!-- OVERLAY FLASH SCAN -->
+<div id="scan-overlay"></div>
 
-function declencherFlash(message, couleur) {
-    let overlay = document.getElementById('scan-overlay');
-    if (!overlay) return;
-    overlay.style.backgroundColor = couleur;
-    overlay.innerHTML = message;
-    overlay.style.display = 'flex';
-    
-    if (navigator.vibrate) navigator.vibrate([200]);
-    setTimeout(() => overlay.style.display = 'none', 2500);
-}
+<!-- BARRE DE NAVIGATION -->
+<div class="nav-bar">
+    <button class="nav-item active" onclick="switchView('home', this)">
+        <i class="fa-solid fa-house"></i> Accueil
+    </button>
+    <button class="nav-item" onclick="switchView('scanner', this)">
+        <i class="fa-solid fa-qrcode"></i> Scanner
+    </button>
+    <button class="nav-item" onclick="switchView('guests', this)">
+        <i class="fa-solid fa-users"></i> Invités
+    </button>
+    <button class="nav-item" onclick="switchView('settings', this)">
+        <i class="fa-solid fa-gear"></i> Paramètres
+    </button>
+</div>
 
-function sauvegarderLocalement() {
-    localStorage.setItem('smartcheck_db', JSON.stringify(BaseDonneesInvites));
-}
-
-function reinitialiserLocale() {
-    if (confirm("Voulez-vous vider le cache local ?")) {
-        BaseDonneesInvites = [];
-        sauvegarderLocalement();
-        MettreAJourAffichage();
-    }
-}
-
+<!-- LIEN VERS LE FICHIER JAVASCRIPT EXTERNE -->
+<script src="app.js"></script>
+</body>
+</html>
