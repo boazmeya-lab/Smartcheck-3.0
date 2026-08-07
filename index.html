@@ -20,25 +20,20 @@
   <!-- CONTENU PRINCIPAL -->
   <main class="max-w-md w-full mx-auto px-4 flex-1">
 
-    <!-- ONGLET 1: TABLEAU DE BORD (DESIGN COMPACT ORIGINAL) -->
+    <!-- ONGLET 1: TABLEAU DE BORD -->
     <section id="tab-accueil" class="tab-content space-y-3">
       <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100/80">
-        
-        <!-- Titre avec icône corrigée -->
         <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
           <i class="fa-solid fa-chart-pie text-slate-700 text-lg"></i> Tableau de bord
         </h2>
 
-        <!-- Grille des statistiques (Hauteur réduite/compacte) -->
         <div class="grid grid-cols-2 gap-3 mb-3">
-          <!-- Total Invités -->
           <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center">
             <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-amber-400 rounded-r"></div>
             <span id="stat-total" class="text-2xl font-black text-slate-800 leading-none mb-1">0</span>
             <span class="text-[11px] text-slate-400 font-medium">Total Invités</span>
           </div>
 
-          <!-- Présents -->
           <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center">
             <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-emerald-500 rounded-r"></div>
             <span id="stat-presents" class="text-2xl font-black text-slate-800 leading-none mb-1">0</span>
@@ -46,14 +41,12 @@
           </div>
         </div>
 
-        <!-- Taux d'accès -->
         <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex flex-col justify-center items-center text-center mb-3">
           <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-amber-400 rounded-r"></div>
           <span id="stat-taux" class="text-2xl font-black text-slate-800 leading-none mb-1">0%</span>
           <span class="text-[11px] text-slate-400 font-medium">Taux d'accès</span>
         </div>
 
-        <!-- Absents (Compact comme les autres cartes) -->
         <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-xs relative overflow-hidden flex items-center justify-between px-4">
           <div class="absolute left-0 top-2 bottom-2 w-1.5 bg-rose-500 rounded-r"></div>
           <div class="flex flex-col">
@@ -63,11 +56,9 @@
           <i class="fa-solid fa-user-xmark text-rose-400 text-xl"></i>
         </div>
 
-        <!-- Bouton Scan -->
         <button onclick="switchTab('scanner')" class="w-full mt-4 bg-[#F59E0B] hover:bg-amber-600 active:scale-[0.98] text-white font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all">
           <i class="fa-solid fa-qrcode text-lg"></i> Lancer un Scan
         </button>
-
       </div>
     </section>
 
@@ -80,60 +71,63 @@
       </div>
     </section>
 
-    <!-- ONGLET 3: LISTE DES INVITÉS -->
+    <!-- ONGLET 3: LISTE DES INVITÉS (REPRODUCTION DE L'IMAGE) -->
     <section id="tab-invites" class="tab-content hidden space-y-4">
       <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-base font-bold text-slate-800">Invités</h2>
-          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Supabase
-          </span>
+        
+        <!-- Barre de recherche et bouton d'actualisation -->
+        <div class="flex gap-2 mb-4">
+          <input type="text" id="guest-search" oninput="filterGuests()" placeholder="Chercher un ticket ou un nom..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500 text-slate-700">
+          <button onclick="fetchGuests()" class="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 px-3.5 py-2.5 rounded-xl transition flex items-center justify-center">
+            <i class="fa-solid fa-rotate-right text-xs"></i>
+          </button>
         </div>
-        <div id="guests-list" class="space-y-2">
+
+        <!-- Liste des invités -->
+        <div id="guests-list" class="divide-y divide-slate-100">
           <p class="text-center text-xs text-slate-400 py-6">Chargement des invités...</p>
         </div>
+
       </div>
     </section>
 
-    <!-- ONGLET 4: PARAMÈTRES (SANS LA RECHERCHE DE L'IMAGE) -->
+    <!-- ONGLET 4: PARAMÈTRES (EXCLUSIVEMENT N8N & IMPORT D'IMAGE) -->
     <section id="tab-parametres" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 space-y-3">
-        <h2 class="text-base font-bold text-slate-800 mb-2">Paramètres</h2>
+      <div class="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 space-y-4">
+        <h2 class="text-base font-bold text-slate-800 mb-1">Paramètres n8n</h2>
 
+        <!-- Lien Webhook n8n -->
         <div>
-          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Supabase URL</label>
-          <input type="text" id="cfg-supa-url" placeholder="https://xyz.supabase.co" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500">
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Supabase Anon Key</label>
-          <input type="password" id="cfg-supa-key" placeholder="eyJhbGci..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500">
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Webhook n8n (SmartCheck)</label>
+          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Lien Webhook n8n (SmartCheck)</label>
           <input type="text" id="cfg-n8n-url" placeholder="https://n8n.instance.com/webhook/..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500">
+        </div>
+
+        <!-- Import d'image depuis le téléphone -->
+        <div class="pt-2">
+          <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Importer une image QR (Galerie téléphone)</label>
+          <input type="file" id="qr-file-input" accept="image/*" onchange="scanImageFile(event)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
+          <div id="file-scan-result" class="mt-2 p-2.5 rounded-xl text-xs font-semibold hidden"></div>
         </div>
 
         <button onclick="saveConfig()" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-900 transition mt-2">
           Enregistrer
         </button>
 
-        <hr class="border-slate-100 my-3">
+        <hr class="border-slate-100 my-2">
 
         <button onclick="testConnection()" class="w-full border border-amber-500 text-amber-600 font-bold py-2.5 rounded-xl text-xs hover:bg-amber-50 transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-plug"></i> Tester la connexion
+          <i class="fa-solid fa-plug"></i> Tester la connexion n8n
         </button>
 
         <button onclick="resetApp()" class="w-full border border-rose-200 text-rose-600 font-bold py-2.5 rounded-xl text-xs hover:bg-rose-50 transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-rotate-right"></i> Réinitialiser l'application
+          <i class="fa-solid fa-rotate-right"></i> Réinitialiser
         </button>
       </div>
     </section>
 
   </main>
 
-  <!-- BARRE DE NAVIGATION FIXE (ICÔNES GARANTIES) -->
+  <!-- BARRE DE NAVIGATION INFÉRIEURE -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 py-2.5 px-4 z-50">
     <div class="max-w-md mx-auto flex justify-around items-center">
       <button onclick="switchTab('accueil')" id="nav-accueil" class="nav-btn text-[#F59E0B] flex flex-col items-center gap-1 text-[11px] font-bold transition">
