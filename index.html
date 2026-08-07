@@ -1,144 +1,277 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartCheck 3.0 - Vérification d'Accès</title>
-  <!-- CDN Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #f4f6f8;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-    }
-    .status-badge {
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: bold;
-      display: inline-block;
-      margin-bottom: 1rem;
-    }
-    .loading { background-color: #e2e8f0; color: #475569; }
-    .valid { background-color: #dcfce7; color: #15803d; }
-    .already-used { background-color: #fef3c7; color: #b45309; }
-    .error { background-color: #fee2e2; color: #b91c1c; }
-    .details { text-align: left; margin-top: 1.5rem; line-height: 1.6; }
-    button {
-      margin-top: 1.5rem;
-      padding: 10px 20px;
-      border: none;
-      background-color: #2563eb;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      width: 100%;
-    }
-    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
-  </style>
-</head>
-<body>
-
-<div class="card">
-  <h2>SmartCheck 3.0</h2>
-  <div id="badge" class="status-badge loading">Vérification en cours...</div>
-  
-  <div id="content">
-    <p>Patientez pendant la lecture des données d'accès.</p>
-  </div>
-</div>
-
 <script>
-  // 1. Initialisation Supabase (remplacez avec vos accès)
-  const SUPABASE_URL = "https://VOTRE_PROJET.supabase.co";
-  const SUPABASE_ANON_KEY = "VOTRE_CLE_ANON";
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let html5QrcodeScanner;
+let BaseDonneesInvites = JSON.parse(localStorage.getItem('smartcheck_db')) || [];
+let WebhookUrl = localStorage.getItem('smartcheck_webhook') || '';
 
-  // 2. Extraction du token/UUID depuis les paramètres de l'URL (?token=...)
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
+document.getElementById('webhook-url').value = WebhookUrl;
+MettreAJourAffichage();
 
-  const badgeEl = document.getElementById('badge');
-  const contentEl = document.getElementById('content');
+// Helper pour récupérer le nom quel que soit le nom de la colonne dans Supabase
+function extraireNom(guest) {
+    if (!guest) return 'Nom Inconnu';
+    return guest.nom_complet || guest.nom || guest.full_name || guest.name || guest.guest_name || guest.ticket_id || 'Invité';
+}
 
-  async function verifyCheckIn() {
-    if (!token) {
-      updateUI("error", "Code introuvable", "Aucun jeton ou code QR valide n'a été fourni dans l'URL.");
-      return;
+function switchView(viewId, element) {
+    document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    if(element) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
     }
+    if (viewId !== 'scanner' && html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => console.log(err));
+        document.getElementById('start-btn').style.display = 'flex';
+    }
+}
 
-    try {
-      // 3. Récupération de l'invité via son UUID/token
-      const { data: guest, error } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('checkin_token', token)
-        .single();
+function demarrerScan() {
+    document.getElementById('start-btn').style.display = 'none';
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: { width: 250, height: 250 } }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+}
 
-      if (error || !guest) {
-        updateUI("error", "Accès Refusé", "Ce code n'existe pas ou n'est plus valide.");
+function normaliserTexte(str) {
+    if(!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function onScanSuccess(decodedText) {
+    let codeScanne = decodedText.trim();
+    html5QrcodeScanner.clear().catch(err => console.log(err));
+    
+    // Recherche prioritaire par Ticket ID puis par Nom
+    let invite = BaseDonneesInvites.find(g => 
+        (g.ticket_id && g.ticket_id.toUpperCase() === codeScanne.toUpperCase()) ||
+        normaliserTexte(extraireNom(g)) === normaliserTexte(codeScanne)
+    );
+    
+    if (invite) {
+        let estPresent = (invite.statut === 'Présent' || invite.scan_status === 'Présent' || invite.scan === true);
+        if (estPresent) {
+            let detailHeure = invite.heure ? 'Arrivé à ' + invite.heure : '';
+            let tableText = (invite.table && invite.table !== 'N/A') 
+                ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
+                : `<div class="flash-table">📍 Non attribuée</div>`;
+            
+            declencherFlash(
+                `<div class="flash-title">Déjà Scanné ! ⚠️</div>
+                 <div class="flash-name">${extraireNom(invite)}</div>
+                 ${tableText}
+                 <span class="flash-extra">${detailHeure}</span>`, 
+                'var(--danger)'
+            );
+            relancerScanneurApresDelai();
+        } else {
+            validerEntree(invite);
+        }
+    } else {
+        // Ticket inconnu dans la base locale
+        let nouvelInvite = { 
+            ticket_id: codeScanne.startsWith('TICK-') ? codeScanne : 'INCONNU', 
+            nom_complet: codeScanne, 
+            statut: 'Absent', 
+            table: 'Non attribuée' 
+        };
+        validerEntree(nouvelInvite, true);
+    }
+}
+
+function onScanFailure(error) {}
+
+async function validerEntree(invite, estNouveau = false) {
+    let maintenant = new Date();
+    let heureActuelle = maintenant.getHours().toString().padStart(2, '0') + ':' + maintenant.getMinutes().toString().padStart(2, '0');
+    
+    invite.statut = 'Présent';
+    invite.scan_status = 'Présent';
+    invite.scan = true;
+    invite.heure = heureActuelle;
+
+    if (estNouveau) {
+        BaseDonneesInvites.unshift(invite);
+    }
+    
+    sauvegarderLocalement();
+    MettreAJourAffichage();
+    
+    let nomPropre = extraireNom(invite);
+    let tableHtml = (invite.table && invite.table !== 'N/A') 
+        ? `<div class="flash-table"><i class="fa-solid fa-chair"></i> ${invite.table}</div>` 
+        : `<div class="flash-table">📍 Table Non attribuée</div>`;
+    
+    let accompagnantText = (invite.avec_accompagnant === 'oui' && invite.nom_accompagnant) 
+        ? `<div class="flash-extra">👥 Accompagnant : <b>${invite.nom_accompagnant}</b></div>` 
+        : '';
+
+    declencherFlash(
+        `<div class="flash-title">Accès Autorisé ✅</div>
+         <div class="flash-name">${nomPropre}</div>
+         ${tableHtml}
+         ${accompagnantText}`, 
+        'var(--success)'
+    );
+
+    // Synchronisation avec n8n pour mise à jour Supabase
+    if (WebhookUrl) {
+        try {
+            let res = await fetch(WebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'checkin', 
+                    ticket_id: invite.ticket_id, 
+                    nom_complet: nomPropre, 
+                    heure: heureActuelle,
+                    table: invite.table 
+                })
+            });
+            
+            // Si le serveur renvoie la liste mise à jour
+            if (res.ok) {
+                let data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    BaseDonneesInvites = data;
+                    sauvegarderLocalement();
+                    MettreAJourAffichage();
+                }
+            }
+        } catch (e) {
+            console.error("Erreur de synchronisation Webhook", e);
+        }
+    }
+    relancerScanneurApresDelai();
+}
+
+function relancerScanneurApresDelai() {
+    setTimeout(() => {
+        if (document.getElementById('view-scanner').classList.contains('active')) {
+            demarrerScan();
+        }
+    }, 2500);
+}
+
+async function synchroniserDonnees() {
+    if (!WebhookUrl) {
+        alert("Veuillez configurer l'URL du Webhook.");
         return;
-      }
-
-      // 4. Traitement selon le statut actuel
-      if (guest.checked_in) {
-        updateUI("already-used", "Déjà Scanné", `
-          <div class="details">
-            <p><strong>Nom :</strong> ${guest.full_name}</p>
-            <p><strong>Statut :</strong> Déjà entré(e)</p>
-            <p><strong>Heure de validation :</strong> ${new Date(guest.checked_in_at).toLocaleTimeString()}</p>
-          </div>
-        `);
-      } else {
-        // 5. Validation et mise à jour de la présence dans Supabase
-        const { error: updateError } = await supabase
-          .from('guests')
-          .update({ 
-            checked_in: true, 
-            checked_in_at: new Date().toISOString() 
-          })
-          .eq('id', guest.id);
-
-        if (updateError) throw updateError;
-
-        updateUI("valid", "Accès Autorisé", `
-          <div class="details">
-            <p><strong>Nom :</strong> ${guest.full_name}</p>
-            <p><strong>Table/Zone :</strong> ${guest.table_number || 'Non assignée'}</p>
-            <p><strong>Entrée validée à :</strong> ${new Date().toLocaleTimeString()}</p>
-          </div>
-        `);
-      }
-
-    } catch (err) {
-      console.error(err);
-      updateUI("error", "Erreur Système", "Impossible de communiquer avec le serveur de vérification.");
     }
-  }
+    try {
+        let response = await fetch(WebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getGuests' })
+        });
+        if (response.ok) {
+            let donnees = await response.json(); 
+            if (Array.isArray(donnees)) {
+                BaseDonneesInvites = donnees;
+                sauvegarderLocalement();
+                MettreAJourAffichage();
+                alert("Données Supabase synchronisées avec succès !");
+            }
+        } else {
+            alert("Erreur lors de la récupération des données.");
+        }
+    } catch (e) {
+        alert("Erreur de connexion avec le serveur n8n.");
+    }
+}
 
-  function updateUI(type, badgeText, htmlContent) {
-    badgeEl.className = `status-badge ${type}`;
-    badgeEl.textContent = badgeText;
-    contentEl.innerHTML = htmlContent;
-  }
+function filtrerInvites() {
+    let query = normaliserTexte(document.getElementById('search-input').value);
+    let listeDiv = document.getElementById('liste-invites');
+    listeDiv.innerHTML = '';
+    
+    let invitesFiltres = BaseDonneesInvites.filter(g => 
+        normaliserTexte(extraireNom(g)).includes(query) ||
+        normaliserTexte(g.ticket_id).includes(query)
+    );
+    
+    if(invitesFiltres.length === 0) {
+        listeDiv.innerHTML = '<p style="color:#bdc3c7; text-align:center; margin-top:20px;">Aucun invité trouvé.</p>';
+        return;
+    }
+    
+    invitesFiltres.forEach(guest => {
+        let estPresent = (guest.statut === 'Présent' || guest.scan_status === 'Présent' || guest.scan === true);
+        let badgeClass = estPresent ? 'present' : 'absent';
+        let detailHeure = guest.heure ? `Scanné à ${guest.heure}` : 'Non arrivé';
+        let displayTable = (guest.table && guest.table !== 'N/A') ? guest.table : 'Non attribuée';
+        let tableBadge = `<div class="guest-table-badge"><i class="fa-solid fa-chair"></i> ${displayTable}</div>`;
+        let nomPropre = extraireNom(guest);
+        let ticketCode = guest.ticket_id ? `<span style="font-size:11px; color:#94a3b8;"> (${guest.ticket_id})</span>` : '';
+        
+        listeDiv.innerHTML += `
+            <div class="guest-item">
+                <div class="guest-info">
+                    <strong>${nomPropre}${ticketCode}</strong>
+                    <span class="guest-time">${detailHeure}</span>
+                    ${tableBadge}
+                </div>
+                <div>
+                    <span class="badge ${badgeClass}">${estPresent ? 'Présent' : 'Absent'}</span>
+                    ${!estPresent ? `<button onclick="forcerValidation('${guest.ticket_id || nomPropre}')" style="margin-left:8px; font-size:11px; padding:4px 6px; border-radius:5px; border:none; background:var(--primary); color:white; cursor:pointer;"><i class="fa-solid fa-check"></i></button>` : ''}
+                </div>
+            </div>
+        `;
+    });
+}
 
-  // Exécution au chargement
-  verifyCheckIn();
+function forcerValidation(identifier) {
+    let invite = BaseDonneesInvites.find(g => g.ticket_id === identifier || extraireNom(g) === identifier);
+    if (invite) validerEntree(invite);
+}
+
+function sauvegarderParametres() {
+    WebhookUrl = document.getElementById('webhook-url').value.trim();
+    localStorage.setItem('smartcheck_webhook', WebhookUrl);
+    alert("Configuration enregistrée !");
+}
+
+async function testerConnexion() {
+    let url = document.getElementById('webhook-url').value.trim();
+    if(!url) return alert("Entrez une URL.");
+    try {
+        let res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action:'ping'}) });
+        if(res.ok) alert("Connecté à n8n avec succès ! 🚀");
+        else alert("Réponse du serveur avec une erreur.");
+    } catch(e) {
+        alert("Échec de la connexion.");
+    }
+}
+
+function MettreAJourAffichage() {
+    let total = BaseDonneesInvites.length;
+    let presents = BaseDonneesInvites.filter(g => g.statut === 'Présent' || g.scan_status === 'Présent' || g.scan === true).length;
+    let ratio = total > 0 ? Math.round((presents / total) * 100) : 0;
+    
+    document.getElementById('stat-total').innerText = total;
+    document.getElementById('stat-present').innerText = presents;
+    document.getElementById('stat-ratio').innerText = ratio + '%';
+    
+    filtrerInvites();
+}
+
+function declencherFlash(message, couleur) {
+    let overlay = document.getElementById('scan-overlay');
+    overlay.style.backgroundColor = couleur;
+    overlay.innerHTML = message;
+    overlay.style.display = 'flex';
+    
+    if (navigator.vibrate) navigator.vibrate([200]);
+    setTimeout(() => overlay.style.display = 'none', 2500);
+}
+
+function sauvegarderLocalement() {
+    localStorage.setItem('smartcheck_db', JSON.stringify(BaseDonneesInvites));
+}
+
+function reinitialiserLocale() {
+    if (confirm("Voulez-vous vider le cache local ?")) {
+        BaseDonneesInvites = [];
+        sauvegarderLocalement();
+        MettreAJourAffichage();
+    }
+}
 </script>
-
-</body>
-</html>
